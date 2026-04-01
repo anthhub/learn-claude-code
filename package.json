@@ -1,0 +1,16 @@
+{
+  "name": "learn-claude-code",
+  "version": "0.1.0",
+  "description": "A hands-on guide to understanding Claude Code's architecture and implementation",
+  "type": "module",
+  "scripts": {
+    "example": "bun run",
+    "ch1:structure": "bun run examples/01-overview/project-structure.ts",
+    "ch1:deps": "bun run examples/01-overview/dependency-graph.ts"
+  },
+  "keywords": ["claude-code", "anthropic", "cli", "architecture", "learning"],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
