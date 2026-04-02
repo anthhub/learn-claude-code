@@ -27,6 +27,9 @@ import type {
   ContentBlock,
   Tool,
   AppConfig,
+  PermissionRule,
+  PermissionContext,
+  PermissionDecision,
 } from "./types/index.js";
 
 // ─── 验证类型系统 ────────────────────────────────────────────────────────────
@@ -87,6 +90,48 @@ const apiTool = toolToAPIFormat(readTool);
 // 构建消息历史
 const messages: Message[] = [userMsg, assistantMsg];
 
+// ─── 验证权限系统 ──────────────────────────────────────────────────────────
+
+// 定义权限规则
+const permissionRules: PermissionRule[] = [
+  { toolName: "Read", behavior: "allow", source: "default", reason: "只读操作无风险" },
+  { toolName: "Bash", pattern: "rm -rf", behavior: "deny", source: "default", reason: "危险的删除操作" },
+  { toolName: "Bash", behavior: "ask", source: "default", reason: "Shell 命令可能有副作用" },
+];
+
+// 构建权限上下文
+const permissionCtx: PermissionContext = {
+  mode: "default",
+  cwd: process.cwd(),
+  rules: permissionRules,
+};
+
+// 简单的权限检查函数（模拟真实 Claude Code 的 canUseTool）
+function checkPermission(
+  toolName: string,
+  input: Record<string, unknown>,
+  rules: PermissionRule[]
+): PermissionDecision {
+  for (const rule of rules) {
+    if (rule.toolName !== "*" && rule.toolName !== toolName) continue;
+    if (rule.pattern) {
+      const command = String(input.command ?? "");
+      if (!command.includes(rule.pattern)) continue;
+    }
+    if (rule.behavior === "allow") return { behavior: "allow" };
+    if (rule.behavior === "deny") return { behavior: "deny", message: rule.reason ?? "Denied" };
+    return { behavior: "ask", message: rule.reason ?? "需要确认" };
+  }
+  return { behavior: "ask", message: "默认需要确认" };
+}
+
+// 测试权限检查
+const permTests = [
+  { tool: "Read", input: { file_path: "main.ts" } },
+  { tool: "Bash", input: { command: "ls -la" } },
+  { tool: "Bash", input: { command: "rm -rf /" } },
+];
+
 // ─── 输出验证结果 ─────────────────────────────────────────────────────────
 
 console.log("mini-claude - 类型系统验证");
@@ -109,6 +154,14 @@ console.log(`默认配置:`);
 console.log(`  模型: ${DEFAULT_CONFIG.model}`);
 console.log(`  最大 Token: ${DEFAULT_CONFIG.maxTokens}`);
 console.log(`  权限模式: ${DEFAULT_CONFIG.permissionMode}`);
+console.log();
+console.log(`权限系统 (模式: ${permissionCtx.mode}):`);
+permTests.forEach((tc) => {
+  const decision = checkPermission(tc.tool, tc.input, permissionCtx.rules);
+  const icon = decision.behavior === "allow" ? "✅" : decision.behavior === "deny" ? "🚫" : "❓";
+  const cmd = (tc.input.command ?? tc.input.file_path) as string;
+  console.log(`  ${icon} ${tc.tool}("${cmd}") → ${decision.behavior}`);
+});
 console.log();
 console.log("类型系统验证通过！");
 console.log("下一步: 第 2 章 - 实现 Tool 接口和工具注册表");
