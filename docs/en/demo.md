@@ -2,7 +2,7 @@
 
 > Build chapter by chapter — end up with an AI coding assistant matching Claude Code's architecture
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=anthhub/learn-claude-code)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=anthhub/open-claude-code)
 
 ## Final Goal
 

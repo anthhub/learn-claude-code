@@ -177,7 +177,7 @@ demo/
 ## 项目结构
 
 ```
-learn-claude-code/
+open-claude-code/
 ├── README.md               # 英文版
 ├── README.zh-CN.md         # 本文件（中文版）
 ├── ROADMAP.md              # 可视化学习路线图
@@ -225,8 +225,8 @@ learn-claude-code/
 
 ```bash
 # 克隆本仓库
-git clone https://github.com/anthhub/learn-claude-code.git
-cd learn-claude-code
+git clone https://github.com/anthhub/open-claude-code.git
+cd open-claude-code
 
 # 安装开发依赖
 bun install

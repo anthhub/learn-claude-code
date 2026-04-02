@@ -5,14 +5,14 @@ export default defineConfig({
   description: "深入理解 Claude Code 架构与实现的实战指南",
 
   head: [
-    ["link", { rel: "icon", type: "image/svg+xml", href: "/learn-claude-code/logo.svg" }],
+    ["link", { rel: "icon", type: "image/svg+xml", href: "/open-claude-code/logo.svg" }],
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { property: "og:title", content: "Learn Claude Code" }],
     ["meta", { property: "og:description", content: "深入理解 Claude Code 架构与实现的实战指南" }],
   ],
   lastUpdated: true,
 
-  base: "/learn-claude-code/",
+  base: "/open-claude-code/",
 
   locales: {
     "zh-CN": {
@@ -25,7 +25,7 @@ export default defineConfig({
           { text: "Demo", link: "/zh-CN/demo" },
           {
             text: "在线环境",
-            link: "https://github.com/codespaces/new?repo=anthhub/learn-claude-code",
+            link: "https://github.com/codespaces/new?repo=anthhub/open-claude-code",
           },
         ],
         sidebar: [
@@ -63,7 +63,7 @@ export default defineConfig({
         ],
         editLink: {
           pattern:
-            "https://github.com/anthhub/learn-claude-code/edit/main/docs/:path",
+            "https://github.com/anthhub/open-claude-code/edit/main/docs/:path",
           text: "在 GitHub 上编辑此页",
         },
         outline: { label: "目录" },
@@ -80,7 +80,7 @@ export default defineConfig({
           { text: "Demo", link: "/en/demo" },
           {
             text: "Online Env",
-            link: "https://github.com/codespaces/new?repo=anthhub/learn-claude-code",
+            link: "https://github.com/codespaces/new?repo=anthhub/open-claude-code",
           },
         ],
         sidebar: [
@@ -118,7 +118,7 @@ export default defineConfig({
         ],
         editLink: {
           pattern:
-            "https://github.com/anthhub/learn-claude-code/edit/main/docs/:path",
+            "https://github.com/anthhub/open-claude-code/edit/main/docs/:path",
           text: "Edit this page on GitHub",
         },
         outline: { label: "On this page" },
@@ -130,7 +130,7 @@ export default defineConfig({
   themeConfig: {
     logo: "/logo.svg",
     socialLinks: [
-      { icon: "github", link: "https://github.com/anthhub/learn-claude-code" },
+      { icon: "github", link: "https://github.com/anthhub/open-claude-code" },
     ],
     search: {
       provider: "local",

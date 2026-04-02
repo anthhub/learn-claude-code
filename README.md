@@ -177,7 +177,7 @@ demo/
 ## Project Structure
 
 ```
-learn-claude-code/
+open-claude-code/
 ├── README.md               # This file
 ├── README.zh-CN.md         # Chinese version
 ├── ROADMAP.md              # Visual learning roadmap
@@ -225,8 +225,8 @@ No prior knowledge of Claude or Anthropic's APIs is required — we explain ever
 
 ```bash
 # Clone this repo
-git clone https://github.com/anthhub/learn-claude-code.git
-cd learn-claude-code
+git clone https://github.com/anthhub/open-claude-code.git
+cd open-claude-code
 
 # Install dev dependencies
 bun install

@@ -2,7 +2,7 @@
 
 > 跟随教程逐章构建，最终得到一个与 Claude Code 架构一致的 AI 编程助手
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=anthhub/learn-claude-code)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=anthhub/open-claude-code)
 
 ## 最终目标
 

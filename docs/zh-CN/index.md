@@ -27,15 +27,15 @@ layout: doc
 
 ### 方式一：在线环境（推荐）
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=anthhub/learn-claude-code)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=anthhub/open-claude-code)
 
 点击上面的按钮，30 秒内获得完整的开发环境，无需本地安装任何工具。
 
 ### 方式二：本地开发
 
 ```bash
-git clone https://github.com/anthhub/learn-claude-code.git
-cd learn-claude-code
+git clone https://github.com/anthhub/open-claude-code.git
+cd open-claude-code
 bun install
 
 # 运行第一章示例

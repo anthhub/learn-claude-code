@@ -726,7 +726,7 @@ The example demonstrates:
 ### 10.1 Running the Example
 
 ```bash
-cd /path/to/learn-claude-code
+cd /path/to/open-claude-code
 npx ts-node examples/12-advanced-features/sandbox.ts
 ```
 

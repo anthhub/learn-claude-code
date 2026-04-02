@@ -27,15 +27,15 @@ layout: doc
 
 ### Option 1: Online Environment (Recommended)
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=anthhub/learn-claude-code)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=anthhub/open-claude-code)
 
 Click the button above to get a full dev environment in 30 seconds — no local installation needed.
 
 ### Option 2: Local Development
 
 ```bash
-git clone https://github.com/anthhub/learn-claude-code.git
-cd learn-claude-code
+git clone https://github.com/anthhub/open-claude-code.git
+cd open-claude-code
 bun install
 
 # Run chapter 1 example

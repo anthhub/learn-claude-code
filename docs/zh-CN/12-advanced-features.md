@@ -726,7 +726,7 @@ ws.addEventListener('message', event => {
 ### 10.1 运行示例
 
 ```bash
-cd /path/to/learn-claude-code
+cd /path/to/open-claude-code
 npx ts-node examples/12-advanced-features/sandbox.ts
 ```
 

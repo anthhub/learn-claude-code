@@ -14,7 +14,7 @@ hero:
       link: /en/01-overview
     - theme: alt
       text: Open in Codespaces
-      link: https://github.com/codespaces/new?repo=anthhub/learn-claude-code
+      link: https://github.com/codespaces/new?repo=anthhub/open-claude-code
 
 features:
   - icon: 📖
