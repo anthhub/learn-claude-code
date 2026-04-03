@@ -37,6 +37,7 @@ import type {
 
 import { buildTool } from "./Tool.js";
 import { allTools, findToolByName, getToolsForAPI } from "./tools.js";
+import { query } from "./query.js";
 
 // ─── 验证类型系统 ────────────────────────────────────────────────────────────
 
@@ -178,7 +179,7 @@ console.log(`  Bash: "${bashResult.content.trim()}"`);
 console.log();
 console.log("类型系统验证通过！");
 
-// ─── 第 3 章：API 服务层演示 ──────────────────────────────────────────────
+// ─── 第 3 章：系统提示词预览 ──────────────────────────────────────────────
 
 // 构建系统提示词
 const systemPrompt = buildSystemPrompt(allTools, process.cwd());
@@ -186,30 +187,37 @@ console.log("系统提示词预览（前 200 字符）:");
 console.log(`  "${systemPrompt.substring(0, 200)}..."`);
 console.log();
 
-// API 客户端演示（需要 ANTHROPIC_API_KEY 环境变量）
-if (process.env.ANTHROPIC_API_KEY) {
-  console.log("API 流式调用演示:");
-  const client = createClient();
-  const apiToolDefs = getToolsForAPI();
+// ─── 第 4 章：Agentic Loop 演示 ───────────────────────────────────────────
 
-  process.stdout.write("  AI: ");
-  for await (const event of streamMessage(client, {
-    model: DEFAULT_MODEL,
-    maxTokens: 256,
-    system: systemPrompt,
-    messages: [{ role: "user", content: "Say hello in one sentence." }],
-    tools: apiToolDefs,
-  })) {
-    if (event.type === "text") {
-      process.stdout.write(event.text ?? "");
-    } else if (event.type === "message_end") {
-      console.log();
-      console.log(`  [tokens: ${event.usage?.inputTokens} in, ${event.usage?.outputTokens} out]`);
+if (process.env.ANTHROPIC_API_KEY) {
+  console.log("Agentic Loop 演示:");
+  console.log("─".repeat(40));
+
+  const result = await query(
+    "请读取当前目录下的 package.json 文件，告诉我项目名称和版本号。",
+    [],
+    {
+      model: DEFAULT_MODEL,
+      maxTokens: 4096,
+      onText: (text) => process.stdout.write(text),
+      onToolUse: (name, input) => {
+        console.log(`\n  [工具调用] ${name}(${JSON.stringify(input)})`);
+      },
+      onToolResult: (name, result, isError) => {
+        const icon = isError ? "❌" : "✅";
+        console.log(`  [工具结果] ${icon} ${name}: ${result.substring(0, 80)}...`);
+      },
     }
-  }
+  );
+
+  console.log();
+  console.log("─".repeat(40));
+  console.log(`循环轮次: ${result.turns}`);
+  console.log(`消息总数: ${result.messages.length}`);
+  console.log(`Token 使用: ${result.inputTokens} 输入 / ${result.outputTokens} 输出`);
 } else {
-  console.log("API 演示跳过（设置 ANTHROPIC_API_KEY 环境变量后可体验流式调用）");
+  console.log("Agentic Loop 演示跳过（设置 ANTHROPIC_API_KEY 后可体验完整的 AI 工具调用循环）");
 }
 
 console.log();
-console.log("下一步: 第 4 章 - 查询循环（Agentic Loop）");
+console.log("下一步: 第 5 章 - 完善工具实现（FileWrite、FileEdit、Glob）");

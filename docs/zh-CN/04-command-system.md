@@ -26,6 +26,7 @@
 8. [可用性与启用状态](#可用性与启用状态)
 9. [动手实践：实现一个斜杠命令](#动手实践实现一个斜杠命令)
 10. [核心要点](#核心要点)
+11. [动手构建：查询循环（Agentic Loop）](#动手构建查询循环agentic-loop)
 
 ---
 
@@ -750,6 +751,114 @@ bun run dev
 6. **懒加载至关重要** — 每个非平凡命令都使用 `load: () => import('./impl.js')`。`index.ts` 文件是约 10 行的元数据声明；真正的代码首次使用时才加载。
 
 7. **`source` 和 `loadedFrom` 追踪来源** — 系统确切知道每个命令来自哪里，这支持正确的显示标签、模型调用过滤和桥接安全检查。
+
+---
+
+---
+
+## 动手构建：查询循环（Agentic Loop）
+
+> **这是整个教程的关键里程碑。** 完成本节后，你的 mini-claude 将第一次实现完整闭环——输入问题，AI 自主调用工具，返回答案。前几章搭建的类型系统、工具注册、API 客户端、系统提示词，全部在这里汇合。
+
+### 11.1 项目结构更新
+
+```
+demo/
+├── main.ts
+├── query.ts             # ← 新增：查询循环（Agentic Loop）
+├── Tool.ts              # 第 2 章
+├── tools.ts             # 第 2 章
+├── context.ts           # 第 3 章
+├── services/api/        # 第 3 章
+├── utils/
+│   └── messages.ts      # ← 新增：消息转换工具函数
+└── types/               # 第 1 章
+```
+
+### 11.2 query.ts 核心逻辑：Agentic Loop
+
+打开 `demo/query.ts`，这是本章最重要的文件。它实现了 Agentic Loop——AI 自主推理循环。
+
+**伪代码总览**
+
+```
+while (turn < maxTurns) {
+  1. 消息历史 → API 格式（messagesToAPIParams）
+  2. 流式调用 API（streamMessage）
+  3. 收集回复（文本 + 工具调用）
+  4. 无工具调用？→ 退出循环
+  5. 执行工具（只读并发，读写串行）
+  6. 工具结果 → user 消息追加到历史
+  7. 继续循环
+}
+```
+
+每次循环称为一个"turn"（轮次）。如果模型返回纯文本（不包含工具调用），说明它认为任务完成，循环终止。如果返回工具调用，执行工具后将结果追加到消息历史，再次调用 API——模型看到了工具结果，可以继续推理或决定完成。
+
+这正是 "Agentic" 的含义：模型不是一次性回答，而是自主决定需要哪些信息、调用哪些工具、何时停止。
+
+### 11.3 工具编排策略
+
+query.ts 中对工具执行采用了智能编排：
+
+- **只读工具**（Read、Grep 等，`isReadOnly() === true`）→ `Promise.all` **并发执行**
+- **读写工具**（Bash 等，`isReadOnly() === false`）→ **串行执行**
+
+为什么这样设计？
+
+- 并发读取是安全的——多个 Read 同时执行不会互相干扰
+- 写操作需要顺序保证——两个 Bash 命令如果并发执行，可能产生竞态条件（例如一个创建文件、另一个写入同一文件）
+
+这与真实 Claude Code 中 `src/query.ts` 的 `processToolCalls()` 逻辑一致：`isConcurrencySafe` 的工具并发执行，其余串行。
+
+### 11.4 utils/messages.ts：消息转换工具函数
+
+打开 `demo/utils/messages.ts`，这是第二个新增文件。
+
+API 需要的消息格式（`MessageParam`）与我们内部的 `Message` 类型不同。这个文件提供三个转换函数：
+
+- **`messagesToAPIParams()`** — 将内部 `Message[]` 转换为 API 需要的 `MessageParam[]`，处理角色映射和内容块格式化
+- **`createToolResultBlock()`** — 构造 `tool_result` 类型的内容块，将工具执行结果包装为 API 期望的格式
+- **`extractToolUseBlocks()`** — 从助手消息的 content 数组中提取所有 `tool_use` 类型的块，用于判断是否需要继续循环
+
+这些函数看似简单，但它们是 Agentic Loop 能正确运转的关键胶水层——没有正确的消息格式转换，API 无法理解工具结果，循环就会断裂。
+
+### 11.5 运行验证
+
+```bash
+cd demo
+bun run main.ts                    # 无 API key 运行（展示工具注册表和系统提示词）
+
+ANTHROPIC_API_KEY=sk-xxx bun run main.ts  # 完整 Agentic Loop 体验
+```
+
+有 API key 时，预期输出类似：
+
+```
+Agentic Loop 演示:
+────────────────────────────────────
+  [工具调用] Read({"file_path":"/.../package.json"})
+  [工具结果] ✅ Read: {"name":"mini-claude","version":"0.1.0"...
+好的，从 package.json 中可以看到：项目名称是 mini-claude，版本号是 0.1.0。
+────────────────────────────────────
+循环轮次: 1
+Token 使用: xxx 输入 / xxx 输出
+```
+
+你会看到 AI 自主决定调用 Read 工具读取文件，获取信息后组织回答——这就是完整的 Agentic Loop。
+
+### 11.6 与真实 Claude Code 的对应关系
+
+| Demo 文件 | 真实文件 | 简化了什么 |
+|-----------|---------|-----------|
+| `query.ts` | `src/query.ts` + `src/QueryEngine.ts` | 无上下文压缩、无重试、无恢复 |
+| `utils/messages.ts` | `src/utils/messages.ts` | 无附件、无 tombstone、无 snip |
+
+这些简化保留了核心模式：循环调用 API → 执行工具 → 追加结果 → 再次调用，同时省略了生产环境中的错误恢复、上下文窗口管理等复杂机制。
+
+### 下一章预告
+
+第 5 章将完善工具实现（FileWriteTool、FileEditTool、GlobTool），让 mini-claude 能创建和编辑文件。
 
 ---
 

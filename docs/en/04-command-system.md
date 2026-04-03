@@ -26,6 +26,7 @@
 8. [Availability and Enablement](#availability-and-enablement)
 9. [Hands-On: Implement a Slash Command](#hands-on-implement-a-slash-command)
 10. [Key Takeaways](#key-takeaways)
+11. [Hands-On Build: Query Loop (Agentic Loop)](#hands-on-build-query-loop-agentic-loop)
 
 ---
 
@@ -750,6 +751,114 @@ See the full working implementation in `examples/04-command-system/slash-command
 6. **Lazy loading is critical** — every non-trivial command uses `load: () => import('./impl.js')`. The `index.ts` file is a ~10-line metadata declaration; the real code loads on first use.
 
 7. **`source` and `loadedFrom` track provenance** — the system knows exactly where each command came from, enabling correct display labels, model invocation filtering, and bridge safety checks.
+
+---
+
+---
+
+## Hands-On Build: Query Loop (Agentic Loop)
+
+> **This is the pivotal milestone of the entire tutorial.** After completing this section, your mini-claude will achieve its first complete closed loop — input a question, the AI autonomously calls tools, and returns an answer. The type system, tool registry, API client, and system prompt from previous chapters all converge here.
+
+### 11.1 Project Structure Update
+
+```
+demo/
+├── main.ts
+├── query.ts             # ← NEW: query loop (Agentic Loop)
+├── Tool.ts              # Chapter 2
+├── tools.ts             # Chapter 2
+├── context.ts           # Chapter 3
+├── services/api/        # Chapter 3
+├── utils/
+│   └── messages.ts      # ← NEW: message conversion utilities
+└── types/               # Chapter 1
+```
+
+### 11.2 query.ts Core Logic: The Agentic Loop
+
+Open `demo/query.ts` — this is the most important file in this chapter. It implements the Agentic Loop, the AI's autonomous reasoning cycle.
+
+**Pseudocode Overview**
+
+```
+while (turn < maxTurns) {
+  1. Message history → API format (messagesToAPIParams)
+  2. Stream API call (streamMessage)
+  3. Collect response (text + tool calls)
+  4. No tool calls? → exit loop
+  5. Execute tools (read-only concurrent, read-write sequential)
+  6. Tool results → append as user message to history
+  7. Continue loop
+}
+```
+
+Each iteration is called a "turn." If the model returns plain text (no tool calls), it considers the task complete and the loop terminates. If it returns tool calls, the tools are executed, results appended to the message history, and the API is called again — the model sees the tool results and can continue reasoning or decide to finish.
+
+This is what "Agentic" means: the model doesn't answer in one shot. It autonomously decides what information it needs, which tools to call, and when to stop.
+
+### 11.3 Tool Orchestration Strategy
+
+query.ts employs intelligent orchestration for tool execution:
+
+- **Read-only tools** (Read, Grep, etc., where `isReadOnly() === true`) → `Promise.all` **concurrent execution**
+- **Read-write tools** (Bash, etc., where `isReadOnly() === false`) → **sequential execution**
+
+Why this design?
+
+- Concurrent reads are safe — multiple Read calls executing simultaneously don't interfere with each other
+- Write operations need ordering guarantees — two Bash commands executing concurrently could produce race conditions (e.g., one creates a file while another writes to the same file)
+
+This mirrors the `processToolCalls()` logic in the real Claude Code's `src/query.ts`: tools marked `isConcurrencySafe` run concurrently, the rest run sequentially.
+
+### 11.4 utils/messages.ts: Message Conversion Utilities
+
+Open `demo/utils/messages.ts` — the second new file in this chapter.
+
+The API expects message formats (`MessageParam`) that differ from our internal `Message` type. This file provides three conversion functions:
+
+- **`messagesToAPIParams()`** — converts internal `Message[]` to the API's `MessageParam[]`, handling role mapping and content block formatting
+- **`createToolResultBlock()`** — constructs a `tool_result` content block, wrapping tool execution results in the format the API expects
+- **`extractToolUseBlocks()`** — extracts all `tool_use` blocks from an assistant message's content array, used to determine whether the loop should continue
+
+These functions may seem simple, but they are the critical glue layer that keeps the Agentic Loop running correctly — without proper message format conversion, the API cannot understand tool results and the loop breaks.
+
+### 11.5 Running the Demo
+
+```bash
+cd demo
+bun run main.ts                    # Run without API key (shows tool registry and system prompt)
+
+ANTHROPIC_API_KEY=sk-xxx bun run main.ts  # Full Agentic Loop experience
+```
+
+With an API key, expected output looks like:
+
+```
+Agentic Loop Demo:
+────────────────────────────────────
+  [Tool Call] Read({"file_path":"/.../package.json"})
+  [Tool Result] ✅ Read: {"name":"mini-claude","version":"0.1.0"...
+OK, from package.json I can see: the project name is mini-claude, version 0.1.0.
+────────────────────────────────────
+Loop turns: 1
+Token usage: xxx input / xxx output
+```
+
+You'll see the AI autonomously deciding to call the Read tool to read a file, then organizing its answer from the retrieved information — this is the complete Agentic Loop in action.
+
+### 11.6 Mapping to Real Claude Code
+
+| Demo File | Real File | What's Simplified |
+|-----------|-----------|-------------------|
+| `query.ts` | `src/query.ts` + `src/QueryEngine.ts` | No context compression, no retry, no recovery |
+| `utils/messages.ts` | `src/utils/messages.ts` | No attachments, no tombstone, no snip |
+
+These simplifications preserve the core pattern: call API in a loop → execute tools → append results → call again, while omitting production concerns like error recovery and context window management.
+
+### What Comes Next
+
+Chapter 5 will flesh out tool implementations (FileWriteTool, FileEditTool, GlobTool), enabling mini-claude to create and edit files.
 
 ---
 
