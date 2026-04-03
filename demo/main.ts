@@ -32,6 +32,9 @@ import type {
   PermissionDecision,
 } from "./types/index.js";
 
+import { buildTool } from "./Tool.js";
+import { allTools, findToolByName, getToolsForAPI } from "./tools.js";
+
 // ─── 验证类型系统 ────────────────────────────────────────────────────────────
 
 // 构造一条用户消息
@@ -66,26 +69,6 @@ const assistantMsg: AssistantMessage = {
 
 // 从助手消息中提取工具调用
 const toolCalls = assistantMsg.message.content.filter(isToolUseBlock);
-
-// 模拟一个工具定义
-const readTool: Tool = {
-  name: "Read",
-  description: "读取文件内容",
-  inputSchema: {
-    type: "object",
-    properties: {
-      file_path: { type: "string", description: "文件的绝对路径" },
-    },
-    required: ["file_path"],
-  },
-  isReadOnly: true,
-  async call(input) {
-    return { content: `[文件内容: ${input.file_path}]` };
-  },
-};
-
-// 转换为 API 格式
-const apiTool = toolToAPIFormat(readTool);
 
 // 构建消息历史
 const messages: Message[] = [userMsg, assistantMsg];
@@ -145,10 +128,27 @@ toolCalls.forEach((tc) => {
   console.log(`    → ${tc.name}(${JSON.stringify(tc.input)})`);
 });
 console.log();
-console.log(`注册工具: ${apiTool.name}`);
-console.log(`  描述: ${apiTool.description}`);
-console.log(`  参数: ${JSON.stringify(apiTool.input_schema.properties)}`);
-console.log(`  只读: ${readTool.isReadOnly}`);
+console.log(`工具注册表: ${allTools.length} 个工具`);
+allTools.forEach((tool) => {
+  const ro = tool.isReadOnly ? "只读" : "读写";
+  console.log(`  ${tool.name.padEnd(8)} [${ro}] ${tool.description}`);
+});
+console.log();
+
+// 测试工具查找
+const found = findToolByName("Read");
+console.log(`查找工具 "Read": ${found ? "✅ 找到" : "❌ 未找到"}`);
+const notFound = findToolByName("NotExist");
+console.log(`查找工具 "NotExist": ${notFound ? "✅ 找到" : "❌ 未找到"}`);
+console.log();
+
+// 展示 API 格式
+const apiTools = getToolsForAPI();
+console.log(`API 工具格式: ${apiTools.length} 个工具定义`);
+apiTools.forEach((t) => {
+  const params = Object.keys(t.input_schema.properties).join(", ");
+  console.log(`  ${t.name}(${params})`);
+});
 console.log();
 console.log(`默认配置:`);
 console.log(`  模型: ${DEFAULT_CONFIG.model}`);
@@ -163,5 +163,15 @@ permTests.forEach((tc) => {
   console.log(`  ${icon} ${tc.tool}("${cmd}") → ${decision.behavior}`);
 });
 console.log();
+// 实际执行工具
+console.log();
+console.log("工具执行测试:");
+const echoResult = await findToolByName("Echo")!.call({ message: "Hello mini-claude!" });
+console.log(`  Echo: "${echoResult.content}"`);
+
+const bashResult = await findToolByName("Bash")!.call({ command: "echo 'tool system works!'" });
+console.log(`  Bash: "${bashResult.content.trim()}"`);
+
+console.log();
 console.log("类型系统验证通过！");
-console.log("下一步: 第 2 章 - 实现 Tool 接口和工具注册表");
+console.log("下一步: 第 3 章 - Anthropic API 调用 + 流式响应");

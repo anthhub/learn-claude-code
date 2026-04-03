@@ -11,7 +11,8 @@
 7. [交互模式与无头模式](#7-交互模式与无头模式)
 8. [启动性能优化](#8-启动性能优化)
 9. [动手实践：构建一个简单的 CLI](#9-动手实践构建一个简单的-cli)
-10. [关键要点与下一章预告](#10-关键要点与下一章预告)
+10. [动手构建：工具工厂与注册表](#10-动手构建工具工厂与注册表)
+11. [关键要点与下一章预告](#11-关键要点与下一章预告)
 
 ---
 
@@ -801,7 +802,98 @@ bun run examples/02-cli-entrypoint/simple-cli.ts --help
 
 ---
 
-## 10. 关键要点与下一章预告
+## 10. 动手构建：工具工厂与注册表
+
+上一章我们搭建了 mini-claude 的类型系统。本章我们新增两个文件，让工具从"类型定义"变成"可执行的注册实体"。
+
+### 10.1 项目结构更新
+
+```
+demo/
+├── main.ts              # 入口文件（更新：使用注册表）
+├── Tool.ts              # <- 新增：工具工厂函数
+├── tools.ts             # <- 新增：工具注册表
+├── package.json
+├── tsconfig.json
+└── types/               # 第 1 章的类型系统
+    ├── index.ts
+    ├── message.ts
+    ├── tool.ts
+    ├── permissions.ts
+    └── config.ts
+```
+
+### 10.2 Tool.ts：工厂函数的设计
+
+打开 `demo/Tool.ts`，这是本章的第一个核心文件。
+
+**为什么需要工厂函数？**
+
+直接用对象字面量创建 Tool 完全可以，但当你有 4 个、10 个、40 个工具时，每个工具都要手写 `isReadOnly: false`、`category: "builtin"` 等重复字段。`buildTool()` 工厂函数解决了这个问题——你只需提供核心字段（name、description、inputSchema、call），其余由 `TOOL_DEFAULTS` 自动填充。
+
+```typescript
+// TOOL_DEFAULTS 提供安全的默认值
+const TOOL_DEFAULTS: Pick<Tool, "category" | "isReadOnly"> = {
+  category: "builtin",
+  isReadOnly: false,
+};
+
+// buildTool() 合并默认值与用户提供的定义
+export function buildTool(definition: ToolDefinition): Tool {
+  return {
+    ...TOOL_DEFAULTS,
+    ...definition,  // 用户定义覆盖默认值
+  };
+}
+```
+
+这种"默认值 + 覆盖"的模式在真实 Claude Code 中更为复杂：真实版本的 `TOOL_DEFAULTS` 包含 30+ 个默认字段，涵盖权限检查、超时设置、重试策略、是否需要用户确认等。我们的简化版抓住了核心思想，只保留 2 个默认字段。
+
+### 10.3 tools.ts：中央化工具注册表
+
+`demo/tools.ts` 是第二个核心文件，实现了工具的集中注册与管理。
+
+**为什么需要注册表？**
+
+AI Agent 的工作流程是：收到 AI 返回的 `tool_use` 消息 -> 根据工具名找到对应的工具 -> 执行 `call()`。没有注册表，你就需要一堆 `if/else` 来匹配工具名。注册表将这个过程标准化为两个关键函数：
+
+- **`findToolByName(name)`**：QueryEngine 用它来匹配 AI 返回的工具名，找到对应的 Tool 对象并执行
+- **`getToolsForAPI()`**：将所有注册的工具转换为 Anthropic API 要求的格式（`{ name, description, input_schema }`），在发起 API 请求时传入
+
+注册表中预置了 4 个初始工具：
+- **EchoTool**：最简单的工具，回显输入内容，用于测试
+- **ReadTool**：读取文件内容
+- **BashTool**：执行 shell 命令
+- **GrepTool**：搜索文件内容
+
+这与真实 Claude Code 的 `src/tools.ts` 对应——真实版本注册了 40+ 个工具，但结构完全一致。
+
+### 10.4 运行验证
+
+```bash
+cd demo
+bun run main.ts
+```
+
+预期输出会包含以下内容：
+
+1. **工具注册表展示**：列出所有已注册工具的名称和描述
+2. **工具查找测试**：通过名称查找工具，验证 `findToolByName()` 的正确性
+3. **API 格式转换**：展示工具转换为 Anthropic API 格式后的结构
+4. **实际执行**：调用工具的 `call()` 方法，展示返回的 `ToolResult`
+
+### 10.5 与真实 Claude Code 的对应关系
+
+| Demo 文件 | 真实文件 | 简化了什么 |
+|-----------|---------|-----------|
+| `Tool.ts` | `src/Tool.ts` | 从 30+ 默认字段简化为 2 个（category、isReadOnly） |
+| `tools.ts` | `src/tools.ts` | 从 40+ 工具简化为 4 个；省略了 MCP 工具、权限过滤、懒加载 Schema |
+
+这些简化保留了真实架构的核心模式：工厂函数统一创建、注册表集中管理、按名称查找、按 API 格式导出。后续章节会逐步添加更多工具和高级特性。
+
+---
+
+## 11. 关键要点与下一章预告
 
 ### 关键要点
 
@@ -823,7 +915,7 @@ bun run examples/02-cli-entrypoint/simple-cli.ts --help
 
 ### 下一章预告
 
-在**第三章：工具系统**中，我们将探索 Claude Code 如何定义、注册和执行工具——这是让 Claude 真正能够做事（如读取文件、运行 bash 命令、编辑代码）的机制。我们将看到 `Tool` 接口如何定义、工具如何被收集和过滤，以及工具使用循环如何与 Anthropic API 配合工作。
+在**第三章：服务层与 API 通信**中，我们将连接 Anthropic API，让工具能被 AI 真正调用。我们将实现 API 客户端、流式响应处理，以及将工具执行结果发回 API 的完整链路。有了工具注册表作为基础，下一步就是让 AI 和工具"对话"起来。
 
 ---
 
@@ -832,3 +924,5 @@ bun run examples/02-cli-entrypoint/simple-cli.ts --help
 - `src/main.tsx` — Commander.js CLI 定义（4,683 行）
 - `src/entrypoints/init.ts` — 核心初始化逻辑
 - `src/bootstrap/state.ts` — 全局会话状态单例
+
+*本章 demo 代码：`demo/Tool.ts`、`demo/tools.ts`*

@@ -11,7 +11,8 @@
 7. [Interactive vs Headless Mode](#7-interactive-vs-headless-mode)
 8. [Startup Performance Optimization](#8-startup-performance-optimization)
 9. [Hands-on: Build a Simple CLI](#9-hands-on-build-a-simple-cli)
-10. [Key Takeaways & What's Next](#10-key-takeaways--whats-next)
+10. [Hands-on: Tool Factory & Registry](#10-hands-on-tool-factory--registry)
+11. [Key Takeaways & What's Next](#11-key-takeaways--whats-next)
 
 ---
 
@@ -801,7 +802,98 @@ bun run examples/02-cli-entrypoint/simple-cli.ts --help
 
 ---
 
-## 10. Key Takeaways & What's Next
+## 10. Hands-on: Tool Factory & Registry
+
+In the previous chapter, we built mini-claude's type system. This chapter adds two new files that turn tools from "type definitions" into "executable registered entities."
+
+### 10.1 Updated Project Structure
+
+```
+demo/
+├── main.ts              # Entrypoint (updated: uses registry)
+├── Tool.ts              # <- NEW: tool factory function
+├── tools.ts             # <- NEW: tool registry
+├── package.json
+├── tsconfig.json
+└── types/               # Chapter 1 type system
+    ├── index.ts
+    ├── message.ts
+    ├── tool.ts
+    ├── permissions.ts
+    └── config.ts
+```
+
+### 10.2 Tool.ts: The Factory Function
+
+Open `demo/Tool.ts` — this is the first core file added in this chapter.
+
+**Why a factory function?**
+
+You could create Tool objects with plain object literals, but once you have 4, 10, or 40+ tools, each one needs boilerplate like `isReadOnly: false` and `category: "builtin"`. The `buildTool()` factory function solves this — you provide only the core fields (name, description, inputSchema, call), and `TOOL_DEFAULTS` fills in the rest automatically.
+
+```typescript
+// TOOL_DEFAULTS provides safe default values
+const TOOL_DEFAULTS: Pick<Tool, "category" | "isReadOnly"> = {
+  category: "builtin",
+  isReadOnly: false,
+};
+
+// buildTool() merges defaults with user-provided definitions
+export function buildTool(definition: ToolDefinition): Tool {
+  return {
+    ...TOOL_DEFAULTS,
+    ...definition,  // User definition overrides defaults
+  };
+}
+```
+
+This "defaults + override" pattern is far more elaborate in real Claude Code: the real `TOOL_DEFAULTS` contains 30+ default fields covering permission checks, timeout settings, retry strategies, user confirmation requirements, and more. Our simplified version captures the core idea with just 2 defaults.
+
+### 10.3 tools.ts: Centralized Tool Registry
+
+`demo/tools.ts` is the second core file, implementing centralized tool registration and management.
+
+**Why a registry?**
+
+An AI Agent's workflow is: receive a `tool_use` message from the AI -> find the matching tool by name -> execute `call()`. Without a registry, you'd need a chain of `if/else` to match tool names. The registry standardizes this into two key functions:
+
+- **`findToolByName(name)`**: Used by QueryEngine to match the tool name returned by the AI and find the corresponding Tool object to execute
+- **`getToolsForAPI()`**: Converts all registered tools into the format required by the Anthropic API (`{ name, description, input_schema }`), passed in when making API requests
+
+The registry comes with 4 initial tools:
+- **EchoTool**: The simplest tool — echoes input back, useful for testing
+- **ReadTool**: Reads file contents
+- **BashTool**: Executes shell commands
+- **GrepTool**: Searches file contents
+
+This corresponds to `src/tools.ts` in real Claude Code, which registers 40+ tools but follows the exact same structure.
+
+### 10.4 Running the Demo
+
+```bash
+cd demo
+bun run main.ts
+```
+
+Expected output includes:
+
+1. **Tool registry display**: Lists all registered tools with their names and descriptions
+2. **Tool lookup test**: Finds tools by name, verifying `findToolByName()` works correctly
+3. **API format conversion**: Shows the tool structure after conversion to Anthropic API format
+4. **Actual execution**: Calls tool `call()` methods and displays the returned `ToolResult`
+
+### 10.5 Correspondence with Real Claude Code
+
+| Demo File | Real File | What's Simplified |
+|-----------|-----------|-------------------|
+| `Tool.ts` | `src/Tool.ts` | From 30+ default fields down to 2 (category, isReadOnly) |
+| `tools.ts` | `src/tools.ts` | From 40+ tools down to 4; omits MCP tools, permission filtering, lazy schema loading |
+
+These simplifications preserve the core architectural patterns: factory function for uniform creation, centralized registry for management, lookup by name, and export in API format. Subsequent chapters will progressively add more tools and advanced features.
+
+---
+
+## 11. Key Takeaways & What's Next
 
 ### Key Takeaways
 
@@ -823,7 +915,7 @@ bun run examples/02-cli-entrypoint/simple-cli.ts --help
 
 ### What's Next
 
-In **Chapter 3: Tool System**, we'll explore how Claude Code defines, registers, and executes tools — the mechanism that allows Claude to actually do things like read files, run bash commands, and edit code. We'll see how the `Tool` interface is defined, how tools are collected and filtered, and how the tool-use loop works with the Anthropic API.
+In **Chapter 3: Service Layer & API Communication**, we'll connect to the Anthropic API so tools can be invoked by the AI. We'll implement the API client, streaming response handling, and the full pipeline for sending tool execution results back to the API. With the tool registry as our foundation, the next step is making the AI and tools "talk" to each other.
 
 ---
 
@@ -832,3 +924,5 @@ In **Chapter 3: Tool System**, we'll explore how Claude Code defines, registers,
 - `src/main.tsx` — Commander.js CLI definition (4,683 lines)
 - `src/entrypoints/init.ts` — Core initialization logic
 - `src/bootstrap/state.ts` — Global session state singleton
+
+*Demo code for this chapter: `demo/Tool.ts`, `demo/tools.ts`*
