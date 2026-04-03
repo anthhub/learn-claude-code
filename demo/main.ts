@@ -190,4 +190,5 @@ if (process.env.ANTHROPIC_API_KEY) {
 }
 
 console.log();
-console.log("下一步: 第 8 章 - REPL 交互式确认框");
+console.log("🎉 mini-claude 全部 12 章构建完成！");
+console.log("运行 ANTHROPIC_API_KEY=sk-xxx bun run start 体验交互式 REPL");

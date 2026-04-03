@@ -29,17 +29,17 @@ demo/
 | Ch | New Modules | Capability After | Status |
 |----|------------|-----------------|--------|
 | 1 | `types/` type system | Type definitions compile | ✅ |
-| 2 | `Tool.ts` + `tools.ts` | Tool interface & registry | 🚧 |
-| 3 | `services/api/` + `context.ts` | Streaming API calls | 🚧 |
-| 4 | `query.ts` + `utils/messages.ts` | Multi-turn tool use loop | 🚧 |
-| 5 | BashTool, FileReadTool, GrepTool | Execute commands, read files, search | 🚧 |
-| 6 | FileWriteTool, FileEditTool, GlobTool | Full file operations | 🚧 |
-| 7 | `utils/permissions.ts` | Dangerous command blocking | 🚧 |
-| 8 | `screens/REPL.tsx` + `components/` | Interactive terminal UI | 🚧 |
-| 9 | `main.ts` (Commander.js) | Full CLI argument support | 🚧 |
-| 10 | `commands/` + compact service | /help, /clear, /compact | 🚧 |
-| 11 | `components/PermissionRequest.tsx` | Interactive permission prompts | 🚧 |
-| 12 | History, retry, error handling | Production-ready | 🚧 |
+| 2 | `Tool.ts` + `tools.ts` | Tool interface & registry | ✅ |
+| 3 | `services/api/` + `context.ts` | Streaming API calls | ✅ |
+| 4 | `query.ts` + `utils/messages.ts` | Multi-turn tool use loop | ✅ |
+| 5 | BashTool, FileReadTool, GrepTool | Execute commands, read files, search | ✅ |
+| 6 | FileWriteTool, FileEditTool, GlobTool | Full file operations | ✅ |
+| 7 | `utils/permissions.ts` | Dangerous command blocking | ✅ |
+| 8 | `screens/REPL.tsx` + `components/` | Interactive terminal UI | ✅ |
+| 9 | `main.ts` (Commander.js) | Full CLI argument support | ✅ |
+| 10 | `commands/` + compact service | /help, /clear, /compact | ✅ |
+| 11 | `components/PermissionRequest.tsx` | Interactive permission prompts | ✅ |
+| 12 | History, retry, error handling | Production-ready | ✅ |
 
 ## Run the Demo
 

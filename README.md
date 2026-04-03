@@ -184,8 +184,7 @@ demo/
 │   ├── FileWriteTool/
 │   ├── FileEditTool/
 │   ├── GrepTool/
-│   ├── GlobTool/
-│   └── TodoWriteTool/
+│   └── GlobTool/
 ├── services/
 │   ├── api/claude.ts          # Anthropic SDK wrapper
 │   └── compact/compact.ts     # Context compression
@@ -201,8 +200,10 @@ demo/
 └── utils/
     ├── permissions.ts
     ├── messages.ts
-    ├── format.ts
-    └── config.ts
+    ├── config.ts
+    ├── history.ts
+    ├── interactive-permission.ts
+    └── retry.ts
 ```
 
 ### Architecture Correspondence

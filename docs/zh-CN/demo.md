@@ -35,17 +35,17 @@ demo/
 | 章 | 新增模块 | 完成后能力 | 状态 |
 |----|---------|-----------|------|
 | 1 | `types/` 类型系统 | 类型定义可编译 | ✅ |
-| 2 | `Tool.ts` + `tools.ts` | 工具接口与注册表 | 🚧 |
-| 3 | `services/api/` + `context.ts` | 流式 API 调用 | 🚧 |
-| 4 | `query.ts` + `utils/messages.ts` | 多轮工具调用循环 | 🚧 |
-| 5 | `tools/BashTool`、`FileReadTool`、`GrepTool` | 执行命令、读文件、搜索 | 🚧 |
-| 6 | `tools/FileWriteTool`、`FileEditTool`、`GlobTool` | 完整文件操作 | 🚧 |
-| 7 | `utils/permissions.ts` | 危险命令拦截 | 🚧 |
-| 8 | `screens/REPL.tsx` + `components/` | 交互式终端 UI | 🚧 |
-| 9 | `main.ts`（Commander.js） | 完整 CLI 参数支持 | 🚧 |
-| 10 | `commands/` + compact 服务 | /help、/clear、/compact | 🚧 |
-| 11 | `components/PermissionRequest.tsx` | 交互式权限确认 | 🚧 |
-| 12 | 历史、重试、错误处理 | 生产就绪 | 🚧 |
+| 2 | `Tool.ts` + `tools.ts` | 工具接口与注册表 | ✅ |
+| 3 | `services/api/` + `context.ts` | 流式 API 调用 | ✅ |
+| 4 | `query.ts` + `utils/messages.ts` | 多轮工具调用循环 | ✅ |
+| 5 | `tools/BashTool`、`FileReadTool`、`GrepTool` | 执行命令、读文件、搜索 | ✅ |
+| 6 | `tools/FileWriteTool`、`FileEditTool`、`GlobTool` | 完整文件操作 | ✅ |
+| 7 | `utils/permissions.ts` | 危险命令拦截 | ✅ |
+| 8 | `screens/REPL.tsx` + `components/` | 交互式终端 UI | ✅ |
+| 9 | `main.ts`（Commander.js） | 完整 CLI 参数支持 | ✅ |
+| 10 | `commands/` + compact 服务 | /help、/clear、/compact | ✅ |
+| 11 | `components/PermissionRequest.tsx` | 交互式权限确认 | ✅ |
+| 12 | 历史、重试、错误处理 | 生产就绪 | ✅ |
 
 ## 运行 Demo
 
