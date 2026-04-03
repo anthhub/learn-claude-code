@@ -11,6 +11,7 @@
 7. [分析服务](#分析服务)
 8. [实战：流式 API 客户端](#实战流式-api-客户端)
 9. [核心要点与后续内容](#核心要点与后续内容)
+10. [动手构建：完整文件操作工具](#动手构建完整文件操作工具)
 
 ---
 
@@ -718,6 +719,100 @@ async function countTokens(text: string): Promise<number> {
 ### 后续内容
 
 第七章涵盖**权限系统** — Claude Code 如何决定是否允许工具调用、`CanUseTool` 接口，以及让用户在运行时授予或拒绝能力的同意流程。
+
+---
+
+## 动手构建：完整文件操作工具
+
+> **本节是 demo 的又一次重要升级。** 我们新增三个文件操作工具——FileWriteTool、FileEditTool、GlobTool，让 mini-claude 拥有完整的文件读写和搜索能力。
+
+### 项目结构更新
+
+```
+demo/
+├── tools/
+│   ├── BashTool/
+│   │   └── index.ts
+│   ├── FileReadTool/
+│   │   └── index.ts
+│   ├── GrepTool/
+│   │   └── index.ts
+│   ├── FileWriteTool/
+│   │   └── index.ts       # ← 新增：创建/覆盖文件
+│   ├── FileEditTool/
+│   │   └── index.ts       # ← 新增：精确字符串替换
+│   └── GlobTool/
+│       └── index.ts       # ← 新增：文件路径匹配
+├── tools.ts               # 更新：注册新工具
+├── query.ts
+├── main.ts
+├── Tool.ts
+├── context.ts
+├── services/api/
+├── utils/
+│   └── messages.ts
+└── types/
+```
+
+### 三个新工具讲解
+
+| 工具 | 功能 | 关键设计 |
+|------|------|---------|
+| FileWriteTool (Write) | 创建/覆盖文件 | 自动创建中间目录；报告行数和字节数 |
+| FileEditTool (Edit) | 精确字符串替换 | old_string 必须唯一匹配；比整文件重写节省 token |
+| GlobTool (Glob) | 文件路径匹配 | 使用 Bun.Glob；结果限制 1000 个 |
+
+**FileWriteTool** 接收 `file_path` 和 `content` 参数，将内容写入指定路径。如果父目录不存在，会自动递归创建（`mkdir -p` 语义）。写入完成后返回行数和字节数，让模型确认操作结果。
+
+**FileEditTool** 接收 `file_path`、`old_string` 和 `new_string` 参数，在文件中找到 `old_string` 并替换为 `new_string`。核心约束是 **old_string 必须在文件中唯一匹配**——如果匹配零次或多次，工具会报错。这个设计防止了在错误位置进行替换。
+
+**GlobTool** 接收 `pattern` 和可选的 `path` 参数，使用 glob 模式匹配文件路径。内部使用 `Bun.Glob` API，结果上限为 1000 个文件，防止返回过多结果消耗 token。
+
+### 为什么 Edit 用字符串替换而非 diff？
+
+这是一个值得深思的设计选择。传统的文件编辑工具可能使用 unified diff 格式，但 Claude Code 选择了 old_string → new_string 的字符串替换方式，原因包括：
+
+- **AI 生成精确的 old_string → new_string 比生成 unified diff 更可靠** —— 模型只需复制要修改的原文并写出替换后的文本，不需要计算正确的行号和 hunk header
+- **唯一匹配检查防止误改错误位置** —— 如果 old_string 在文件中出现多次，工具会拒绝执行并报错，强制模型提供更长的上下文以精确定位
+- **真实 Claude Code 采用同样的方式** —— 这不是简化，而是生产系统验证过的最优方案
+
+### 工具全景
+
+现在 mini-claude 共有 7 个工具，可按读写特性分为两类：
+
+```
+只读工具（可并发）：Echo, Read, Grep, Glob
+读写工具（必须串行）：Bash, Write, Edit
+```
+
+只读工具不会修改文件系统状态，可以安全地并发执行。读写工具可能改变文件系统，必须串行执行以避免竞态条件。这个分类在第 7 章的权限系统中将变得至关重要——读写工具需要用户确认，而只读工具可以自动执行。
+
+### 运行验证
+
+```bash
+cd demo && bun run main.ts
+```
+
+尝试以下交互来验证新工具：
+
+```
+你> 创建一个 hello.txt 文件，内容是 "Hello, World!"
+你> 把 hello.txt 中的 World 改成 Claude
+你> 查找当前目录下所有 .ts 文件
+```
+
+### 与真实 Claude Code 的对应关系
+
+| Demo 文件 | 真实文件 | 简化了什么 |
+|-----------|---------|-----------|
+| `tools/FileWriteTool/index.ts` | `src/tools/FileWriteTool/` | 无权限检查、无符号链接保护 |
+| `tools/FileEditTool/index.ts` | `src/tools/FileEditTool/` | 无 replace_all 模式、无语法验证 |
+| `tools/GlobTool/index.ts` | `src/tools/GlobTool/` | 无 gitignore 过滤、无按修改时间排序 |
+| `tools.ts`（注册 7 个工具） | `src/tools.ts` | 无懒加载、无功能标志过滤 |
+
+### 下一章预告
+
+第 7 章将实现权限系统，确保危险操作（如 `rm -rf`、写入系统文件）需要用户确认。读写工具将受到严格管控，而只读工具可以自由执行。
 
 ---
 

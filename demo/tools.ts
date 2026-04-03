@@ -18,7 +18,10 @@ import { buildTool } from "./Tool.js";
 // ─── 从独立模块导入增强版工具 ──────────────────────────────────────────────────
 import { BashTool } from "./tools/BashTool/index.js";
 import { FileReadTool } from "./tools/FileReadTool/index.js";
+import { FileWriteTool } from "./tools/FileWriteTool/index.js";
+import { FileEditTool } from "./tools/FileEditTool/index.js";
 import { GrepTool } from "./tools/GrepTool/index.js";
+import { GlobTool } from "./tools/GlobTool/index.js";
 
 // ─── 内联工具定义 ──────────────────────────────────────────────────────────────
 
@@ -56,8 +59,11 @@ const EchoTool = buildTool({
 export const allTools: Tool[] = [
   EchoTool,
   FileReadTool,
+  FileWriteTool,
+  FileEditTool,
   BashTool,
   GrepTool,
+  GlobTool,
 ];
 
 /**
@@ -81,4 +87,4 @@ export function getToolsForAPI(): APIToolDefinition[] {
 }
 
 // 导出各个工具（供直接引用或测试）
-export { EchoTool, FileReadTool, BashTool, GrepTool };
+export { EchoTool, FileReadTool, FileWriteTool, FileEditTool, BashTool, GrepTool, GlobTool };

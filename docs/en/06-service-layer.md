@@ -11,6 +11,7 @@
 7. [Analytics Service](#analytics-service)
 8. [Hands-on: Streaming API Client](#hands-on-streaming-api-client)
 9. [Key Takeaways & What's Next](#key-takeaways--whats-next)
+10. [Hands-on: Complete File Operation Tools](#hands-on-complete-file-operation-tools)
 
 ---
 
@@ -718,6 +719,100 @@ async function countTokens(text: string): Promise<number> {
 ### What's Next
 
 Chapter 7 covers the **Permission System** — how Claude Code decides whether a tool call is allowed, the `CanUseTool` interface, and the consent flow that lets users grant or deny capabilities at runtime.
+
+---
+
+## Hands-on: Complete File Operation Tools
+
+> **This section is another major upgrade to the demo.** We add three file operation tools — FileWriteTool, FileEditTool, and GlobTool — giving mini-claude full file read/write and search capabilities.
+
+### Project Structure Update
+
+```
+demo/
+├── tools/
+│   ├── BashTool/
+│   │   └── index.ts
+│   ├── FileReadTool/
+│   │   └── index.ts
+│   ├── GrepTool/
+│   │   └── index.ts
+│   ├── FileWriteTool/
+│   │   └── index.ts       # ← New: create/overwrite files
+│   ├── FileEditTool/
+│   │   └── index.ts       # ← New: precise string replacement
+│   └── GlobTool/
+│       └── index.ts       # ← New: file path matching
+├── tools.ts               # Updated: register new tools
+├── query.ts
+├── main.ts
+├── Tool.ts
+├── context.ts
+├── services/api/
+├── utils/
+│   └── messages.ts
+└── types/
+```
+
+### Three New Tools Explained
+
+| Tool | Function | Key Design |
+|------|----------|------------|
+| FileWriteTool (Write) | Create/overwrite files | Auto-creates intermediate directories; reports line count and byte size |
+| FileEditTool (Edit) | Precise string replacement | old_string must match uniquely; saves tokens compared to full file rewrite |
+| GlobTool (Glob) | File path matching | Uses Bun.Glob; results capped at 1000 |
+
+**FileWriteTool** accepts `file_path` and `content` parameters, writing content to the specified path. If parent directories don't exist, they are created recursively (`mkdir -p` semantics). After writing, it returns line count and byte size so the model can confirm the operation result.
+
+**FileEditTool** accepts `file_path`, `old_string`, and `new_string` parameters, finding `old_string` in the file and replacing it with `new_string`. The core constraint is that **old_string must match uniquely in the file** — if it matches zero times or multiple times, the tool returns an error. This design prevents replacements at wrong locations.
+
+**GlobTool** accepts `pattern` and an optional `path` parameter, matching file paths using glob patterns. It uses the `Bun.Glob` API internally, with results capped at 1000 files to prevent excessive token consumption.
+
+### Why String Replacement Instead of Diff?
+
+This is a design choice worth reflecting on. Traditional file editing tools might use unified diff format, but Claude Code chose the old_string → new_string string replacement approach for several reasons:
+
+- **AI generates precise old_string → new_string more reliably than unified diff** — the model only needs to copy the original text to modify and write the replacement, without computing correct line numbers and hunk headers
+- **Unique match checking prevents edits at wrong locations** — if old_string appears multiple times in the file, the tool refuses to execute and returns an error, forcing the model to provide more context for precise targeting
+- **Real Claude Code uses the same approach** — this isn't a simplification, but a production-validated optimal solution
+
+### Tool Landscape
+
+mini-claude now has 7 tools, categorized by read/write characteristics:
+
+```
+Read-only tools (can run concurrently): Echo, Read, Grep, Glob
+Read-write tools (must run serially):   Bash, Write, Edit
+```
+
+Read-only tools don't modify filesystem state and can safely run concurrently. Read-write tools may change the filesystem and must run serially to avoid race conditions. This classification becomes critical in Chapter 7's permission system — read-write tools require user confirmation, while read-only tools can execute automatically.
+
+### Running the Demo
+
+```bash
+cd demo && bun run main.ts
+```
+
+Try these interactions to verify the new tools:
+
+```
+you> Create a hello.txt file with content "Hello, World!"
+you> Change "World" to "Claude" in hello.txt
+you> Find all .ts files in the current directory
+```
+
+### Mapping to Real Claude Code
+
+| Demo File | Real File | What's Simplified |
+|-----------|-----------|-------------------|
+| `tools/FileWriteTool/index.ts` | `src/tools/FileWriteTool/` | No permission checks, no symlink protection |
+| `tools/FileEditTool/index.ts` | `src/tools/FileEditTool/` | No replace_all mode, no syntax validation |
+| `tools/GlobTool/index.ts` | `src/tools/GlobTool/` | No gitignore filtering, no sort-by-mtime |
+| `tools.ts` (registers 7 tools) | `src/tools.ts` | No lazy loading, no feature flag filtering |
+
+### Next Chapter Preview
+
+Chapter 7 will implement the permission system, ensuring dangerous operations (like `rm -rf`, writing to system files) require user confirmation. Read-write tools will be strictly controlled, while read-only tools can execute freely.
 
 ---
 
