@@ -844,3 +844,142 @@ Vim 模式只实现了最常见的移动。状态机易于扩展——添加 `q@
 ---
 
 *本章结束了《学习 Claude Code》系列。从第 1 章的架构概述到第 12 章的高级内部机制的旅程，覆盖了现有最复杂的生产 AI 代理系统之一。你现在拥有了自信阅读代码库任何部分的心理模型。继续探索，继续构建。*
+
+---
+
+## 动手构建：生产就绪
+
+> 这是 mini-claude 系列的最后一章。我们添加三个生产级基础设施模块：会话历史持久化、API 重试逻辑、多源配置加载。
+
+### 项目结构更新
+
+```
+demo/
+├── utils/
+│   ├── permissions.ts              # Ch7：权限规则
+│   ├── messages.ts                 # Ch6：消息工具
+│   ├── interactive-permission.ts   # Ch11：交互式权限
+│   ├── history.ts                  # ← 新增：会话历史持久化
+│   ├── retry.ts                    # ← 新增：指数退避重试
+│   └── config.ts                   # ← 新增：多源配置加载
+├── ...
+```
+
+### history.ts — 会话持久化
+
+将对话历史保存到 `~/.mini-claude/sessions/` 目录，支持下次恢复：
+
+```typescript
+// 保存会话
+await saveSession("2024-01-15T10-30-00", messages);
+
+// 加载会话
+const history = await loadSession("2024-01-15T10-30-00");
+
+// 列出所有会话
+const sessions = listSessions(); // ["2024-01-15T10-30-00", ...]
+```
+
+### retry.ts — 指数退避重试
+
+API 调用可能因网络波动或限流失败。`withRetry()` 自动重试可恢复的错误：
+
+```typescript
+const result = await withRetry(
+  () => callAnthropicAPI(prompt),
+  {
+    maxRetries: 3,
+    initialDelay: 1000,    // 第 1 次重试等 1 秒
+    maxDelay: 30000,       // 最长等 30 秒
+    onRetry: (err, attempt) => console.log(`重试 #${attempt}...`),
+  }
+);
+```
+
+**可重试的错误类型：**
+- 429 Rate Limit（限流）
+- 500/502/503 服务端错误
+- 网络超时、连接重置
+- API 过载（overloaded）
+
+### config.ts — 多源配置加载
+
+配置优先级从高到低：CLI 参数 > 环境变量 > 配置文件 > 默认值。
+
+```typescript
+const fileConfig = await loadConfigFile();  // ~/.mini-claude/config.json
+const config = mergeConfig(cliOptions, fileConfig);
+// config.apiKey  → CLI > env > file > ""
+// config.model   → CLI > file > default
+```
+
+### 最终项目结构全景
+
+```
+demo/
+├── cli.ts                  # Ch9:  Commander.js CLI 入口
+├── repl.tsx                # Ch8:  Ink REPL 入口
+├── main.ts                 # Ch1:  脚本式验证
+├── query.ts                # Ch6:  Agentic Loop 核心
+├── context.ts              # Ch6:  系统提示词
+├── tools.ts                # Ch3:  工具注册
+├── Tool.ts                 # Ch3:  工具基类
+├── types/
+│   ├── index.ts            # Ch1:  类型导出
+│   ├── message.ts          # Ch1:  消息类型
+│   ├── tool.ts             # Ch3:  工具类型
+│   ├── permissions.ts      # Ch7:  权限类型
+│   └── config.ts           # Ch9:  配置类型
+├── tools/
+│   ├── EchoTool.ts         # Ch3:  Echo 工具
+│   ├── ReadTool.ts         # Ch3:  Read 工具
+│   ├── WriteTool.ts        # Ch3:  Write 工具
+│   ├── EditTool.ts         # Ch3:  Edit 工具
+│   ├── BashTool.ts         # Ch3:  Bash 工具
+│   ├── GrepTool.ts         # Ch3:  Grep 工具
+│   └── GlobTool.ts         # Ch3:  Glob 工具
+├── commands/
+│   ├── index.ts            # Ch10: 命令注册表
+│   ├── help.ts             # Ch10: /help 命令
+│   ├── clear.ts            # Ch10: /clear 命令
+│   └── compact.ts          # Ch10: /compact 命令
+├── components/
+│   ├── App.tsx             # Ch8:  应用入口
+│   ├── MessageList.tsx     # Ch8:  消息列表
+│   └── PermissionRequest.tsx # Ch8: 权限确认
+├── screens/
+│   └── REPL.tsx            # Ch8:  REPL 主界面
+├── utils/
+│   ├── permissions.ts      # Ch7:  权限检查
+│   ├── messages.ts         # Ch6:  消息工具
+│   ├── interactive-permission.ts # Ch11: 交互式权限
+│   ├── history.ts          # Ch12: 会话持久化
+│   ├── retry.ts            # Ch12: 重试逻辑
+│   └── config.ts           # Ch12: 配置加载
+├── package.json
+└── tsconfig.json
+```
+
+### 与真实 Claude Code 的对应
+
+| Demo | 真实 Claude Code | 简化了什么 |
+|------|-----------------|-----------|
+| `history.ts` | `src/utils/session.ts` | 无加密、无会话元数据、无自动清理 |
+| `retry.ts` | `src/services/api/withRetry.ts` | 无 jitter、无自适应退避 |
+| `config.ts` | `src/utils/config/` | 无 CLAUDE.md 解析、无 settings.json 合并 |
+
+### 恭喜完成！
+
+你已经从零构建了一个完整的 mini-claude 项目，覆盖了 Claude Code 架构的核心层：
+
+1. **类型系统**（Ch1-2）— 消息、工具、配置的类型基础
+2. **工具系统**（Ch3）— 7 个内置工具的注册和执行
+3. **服务层**（Ch5-6）— Agentic Loop、流式输出、系统提示词
+4. **权限系统**（Ch7）— 规则匹配、权限检查
+5. **终端 UI**（Ch8）— Ink 组件、REPL 交互
+6. **CLI 入口**（Ch9）— Commander.js 参数解析
+7. **命令系统**（Ch10）— 斜杠命令注册表
+8. **交互式权限**（Ch11）— 终端确认流程
+9. **生产基础设施**（Ch12）— 持久化、重试、配置
+
+每个模块都有真实 Claude Code 中的对应物。理解了 mini-claude 的架构，你就理解了真实 Claude Code 的骨架。接下来，阅读源码时你会发现：一切都似曾相识。

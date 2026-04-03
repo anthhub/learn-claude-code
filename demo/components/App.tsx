@@ -7,8 +7,15 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { REPL } from "../screens/REPL.js";
+import type { PermissionMode } from "../types/index.js";
 
-export function App() {
+interface AppProps {
+  model?: string;
+  maxTokens?: number;
+  permissionMode?: PermissionMode;
+}
+
+export function App({ model, maxTokens, permissionMode }: AppProps) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return (
       <Box flexDirection="column" padding={1}>
@@ -19,5 +26,5 @@ export function App() {
     );
   }
 
-  return <REPL />;
+  return <REPL model={model} maxTokens={maxTokens} permissionMode={permissionMode} />;
 }

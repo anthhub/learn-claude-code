@@ -771,3 +771,81 @@ command.context === 'fork'?
 - `src/tools/SkillTool/SkillTool.ts` — Skill execution (inline/fork)
 - `src/plugins/builtinPlugins.ts` — Built-in plugin registry
 - `src/services/plugins/PluginInstallationManager.ts` — Background marketplace installation
+
+---
+
+## Hands-On: Slash Commands & Context Compression
+
+> The real Claude Code has a rich slash command system (`/help`, `/clear`, `/compact`, `/config`, etc.). In this chapter we implement a simplified command registry.
+
+### Project Structure Update
+
+```
+demo/
+├── commands/
+│   ├── index.ts        # ← New: command registry
+│   ├── help.ts         # ← New: /help command
+│   ├── clear.ts        # ← New: /clear command
+│   └── compact.ts      # ← New: /compact command
+├── ...
+```
+
+### Command Registry Pattern
+
+The registry is a simple array + lookup function. All commands implement the `SlashCommand` interface:
+
+```typescript
+export interface SlashCommand {
+  name: string;
+  description: string;
+  execute(args?: string): string;
+}
+
+export const commands: SlashCommand[] = [
+  helpCommand,
+  clearCommand,
+  compactCommand,
+];
+
+export function tryExecuteCommand(input: string): string | null {
+  if (!input.startsWith("/")) return null;
+  const cmdName = input.slice(1).split(/\s+/)[0];
+  const cmd = findCommand(cmdName);
+  if (!cmd) return `Unknown command: /${cmdName}`;
+  return cmd.execute();
+}
+```
+
+### The Three Commands
+
+| Command | Purpose | Real Claude Code equivalent |
+|---------|---------|----------------------------|
+| `/help` | List all available commands and tools | `src/commands.ts` help |
+| `/clear` | Clear conversation history | `src/commands.ts` clear |
+| `/compact` | Compress conversation context | `src/services/compact/` |
+
+### /compact Compression Strategy
+
+The real Claude Code compression system is very complex (Session Memory + LLM summarization + circuit breaker). Our simplified version is a placeholder:
+
+```typescript
+export const compactCommand = {
+  name: "compact",
+  description: "Compress conversation context",
+  execute(): string {
+    return "Context compression complete.";
+  },
+};
+```
+
+### Mapping to Real Claude Code
+
+| Demo | Real Claude Code | What's simplified |
+|------|-----------------|-------------------|
+| `commands/index.ts` | `src/commands.ts` | No dynamic loading, no permission checks |
+| `SlashCommand` interface | `CommandDef` type | No parameter schema, no subcommands |
+| `/compact` placeholder | `src/services/compact/` | No LLM summarization, no token counting |
+
+### Next Chapter Preview
+
+Chapter 11 implements interactive permission confirmation — when a tool requires "ask" permission, execution pauses in the terminal to await user confirmation.

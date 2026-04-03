@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "start": "bun run repl.tsx",
-    "demo": "bun run main.ts"
+    "start": "bun run cli.ts",
+    "demo": "bun run main.ts",
+    "repl": "bun run repl.tsx"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
+    "commander": "^14.0.3",
     "ink": "^6.8.0",
     "react": "^19.2.4"
   },

@@ -771,3 +771,81 @@ command.context === 'fork'?
 - `src/tools/SkillTool/SkillTool.ts` — Skill 执行（inline/fork）
 - `src/plugins/builtinPlugins.ts` — 内置插件注册表
 - `src/services/plugins/PluginInstallationManager.ts` — 后台市场安装
+
+---
+
+## 动手构建：斜杠命令与上下文压缩
+
+> 真实 Claude Code 有丰富的斜杠命令系统（`/help`、`/clear`、`/compact`、`/config` 等）。本章我们实现一个简化版的命令注册表。
+
+### 项目结构更新
+
+```
+demo/
+├── commands/
+│   ├── index.ts        # ← 新增：命令注册表
+│   ├── help.ts         # ← 新增：/help 命令
+│   ├── clear.ts        # ← 新增：/clear 命令
+│   └── compact.ts      # ← 新增：/compact 命令
+├── ...
+```
+
+### 命令注册表模式
+
+命令注册表是一个简单的数组 + 查找函数，所有命令都实现 `SlashCommand` 接口：
+
+```typescript
+export interface SlashCommand {
+  name: string;
+  description: string;
+  execute(args?: string): string;
+}
+
+export const commands: SlashCommand[] = [
+  helpCommand,
+  clearCommand,
+  compactCommand,
+];
+
+export function tryExecuteCommand(input: string): string | null {
+  if (!input.startsWith("/")) return null;
+  const cmdName = input.slice(1).split(/\s+/)[0];
+  const cmd = findCommand(cmdName);
+  if (!cmd) return `未知命令: /${cmdName}`;
+  return cmd.execute();
+}
+```
+
+### 三个命令的实现
+
+| 命令 | 作用 | 对应真实 Claude Code |
+|------|------|---------------------|
+| `/help` | 列出所有可用命令和工具 | `src/commands.ts` 中的 help |
+| `/clear` | 清空对话历史 | `src/commands.ts` 中的 clear |
+| `/compact` | 压缩对话上下文 | `src/services/compact/` |
+
+### /compact 压缩策略
+
+真实 Claude Code 的压缩系统非常复杂（Session Memory + LLM 摘要 + 电路熔断器）。我们的简化版只做占位：
+
+```typescript
+export const compactCommand = {
+  name: "compact",
+  description: "压缩对话上下文",
+  execute(): string {
+    return "上下文压缩完成。";
+  },
+};
+```
+
+### 与真实 Claude Code 的对应
+
+| Demo | 真实 Claude Code | 简化了什么 |
+|------|-----------------|-----------|
+| `commands/index.ts` | `src/commands.ts` | 无动态加载、无权限检查 |
+| `SlashCommand` 接口 | `CommandDef` 类型 | 无参数 schema、无子命令 |
+| `/compact` 占位 | `src/services/compact/` | 无 LLM 摘要、无 token 计算 |
+
+### 下一章预告
+
+第 11 章将实现交互式权限确认——当工具需要 "ask" 权限时，在终端中暂停执行并等待用户确认。

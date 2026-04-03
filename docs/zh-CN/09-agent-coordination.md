@@ -877,3 +877,80 @@ class Coordinator {
 - `src/utils/swarm/inProcessRunner.ts` — 带 AsyncLocalStorage 的进程内 runner
 - `src/tools/SendMessageTool/SendMessageTool.ts` — Agent 通信
 - `src/tools/TeamCreateTool/TeamCreateTool.ts` — 团队创建
+
+---
+
+## 动手构建：Commander.js CLI 入口
+
+> 真实 Claude Code 的入口文件是 `src/entrypoints/cli.tsx`，由 Commander.js 解析参数、决定运行模式。本章我们为 mini-claude 添加 CLI 参数支持，让它像真正的命令行工具一样工作。
+
+### 项目结构更新
+
+```
+demo/
+├── cli.ts              # ← 新增：Commander.js CLI 入口
+├── repl.tsx            # REPL 入口（被 cli.ts 调用）
+├── main.ts             # 脚本式验证（保留）
+├── ...
+```
+
+### CLI 参数讲解
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `-m, --model <model>` | 使用的模型 ID | `claude-sonnet-4-20250514` |
+| `--max-tokens <n>` | 最大输出 token 数 | `4096` |
+| `--permission-mode <mode>` | 权限模式：default / auto / bypassPermissions | `auto` |
+| `-p, --prompt <text>` | 非交互模式：执行单次查询后退出 | — |
+| `--print` | 仅输出 AI 回复文本（配合 `-p` 使用） | — |
+
+### 两种运行模式
+
+**交互式模式**（默认）：启动 Ink REPL，用户可以持续对话。
+
+```bash
+ANTHROPIC_API_KEY=sk-xxx bun run start
+```
+
+**非交互式模式**：执行一次查询后退出，适合脚本调用。
+
+```bash
+ANTHROPIC_API_KEY=sk-xxx bun run start -- -p "列出当前目录的文件"
+```
+
+### 核心实现
+
+```typescript
+// cli.ts 的核心逻辑
+program
+  .option("-p, --prompt <text>", "Run a single prompt")
+  .action(async (options) => {
+    if (options.prompt) {
+      // 非交互模式：调用 query()，输出结果，退出
+      const result = await query(promptText, [], { ... });
+      process.exit(0);
+    }
+    // 交互模式：启动 Ink REPL
+    render(React.createElement(App, { model, maxTokens, permissionMode }));
+  });
+```
+
+### 运行验证
+
+```bash
+cd demo
+bun run start -- --help
+```
+
+你应该看到 mini-claude 的帮助信息，包括所有参数说明。
+
+### 与真实 Claude Code 的对应
+
+| Demo | 真实 Claude Code | 简化了什么 |
+|------|-----------------|-----------|
+| `cli.ts` | `src/entrypoints/cli.tsx` | 无 session 恢复、无 onboarding、无 --resume |
+| Commander.js 参数 | 同样使用 Commander.js | 真实版本有更多参数（--verbose, --debug 等） |
+
+### 下一章预告
+
+第 10 章将为 REPL 添加斜杠命令系统（/help、/clear、/compact），以及上下文压缩功能。

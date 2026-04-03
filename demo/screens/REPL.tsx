@@ -12,9 +12,17 @@ import { query } from "../query.js";
 import { allTools } from "../tools.js";
 import { createPermissionContext, createCheckPermissionFn } from "../utils/permissions.js";
 import { DEFAULT_MODEL } from "../types/index.js";
-import type { Message } from "../types/index.js";
+import type { Message, PermissionMode } from "../types/index.js";
+import { tryExecuteCommand } from "../commands/index.js";
+import { compactMessages } from "../services/compact/compact.js";
 
-export function REPL() {
+interface REPLProps {
+  model?: string;
+  maxTokens?: number;
+  permissionMode?: PermissionMode;
+}
+
+export function REPL({ model: modelProp, maxTokens: maxTokensProp, permissionMode: permModeProp }: REPLProps = {}) {
   const { exit } = useApp();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -22,7 +30,11 @@ export function REPL() {
   const [streamText, setStreamText] = useState("");
   const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 });
 
-  const permCtx = createPermissionContext("auto");
+  const activeModel = modelProp ?? DEFAULT_MODEL;
+  const activeMaxTokens = maxTokensProp ?? 4096;
+  const activePermMode = permModeProp ?? "auto";
+
+  const permCtx = createPermissionContext(activePermMode);
   const checkPerm = createCheckPermissionFn(permCtx);
 
   const handleSubmit = useCallback(async (value: string) => {
@@ -35,14 +47,32 @@ export function REPL() {
       return;
     }
 
+    // 检查斜杠命令
+    const cmdResult = tryExecuteCommand(trimmed);
+    if (cmdResult !== null) {
+      if (trimmed === "/clear") {
+        setMessages([]);
+      } else if (trimmed === "/compact") {
+        setMessages((prev) => compactMessages(prev));
+      }
+      // 将命令结果作为系统消息显示
+      setMessages((prev) => [...prev, {
+        type: "system" as const,
+        subtype: "local_command" as const,
+        message: cmdResult,
+      }]);
+      setInput("");
+      return;
+    }
+
     setInput("");
     setIsLoading(true);
     setStreamText("");
 
     try {
       const result = await query(trimmed, [...messages], {
-        model: DEFAULT_MODEL,
-        maxTokens: 4096,
+        model: activeModel,
+        maxTokens: activeMaxTokens,
         checkPermission: checkPerm,
         onText: (text) => {
           setStreamText((prev) => prev + text);
@@ -74,7 +104,7 @@ export function REPL() {
       {/* Header */}
       <Box marginBottom={1}>
         <Text bold color="cyan">mini-claude</Text>
-        <Text dimColor> | {DEFAULT_MODEL} | {allTools.length} tools | tokens: {tokenUsage.input}↑ {tokenUsage.output}↓</Text>
+        <Text dimColor> | {activeModel} | {allTools.length} tools | tokens: {tokenUsage.input}↑ {tokenUsage.output}↓</Text>
       </Box>
 
       {/* Message History */}

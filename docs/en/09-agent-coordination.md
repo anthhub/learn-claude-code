@@ -880,3 +880,80 @@ Topics covered:
 - `src/utils/swarm/inProcessRunner.ts` — In-process runner with AsyncLocalStorage
 - `src/tools/SendMessageTool/SendMessageTool.ts` — Agent communication
 - `src/tools/TeamCreateTool/TeamCreateTool.ts` — Team creation
+
+---
+
+## Hands-On: Commander.js CLI Entry Point
+
+> The real Claude Code entry point is `src/entrypoints/cli.tsx`, powered by Commander.js for argument parsing and mode selection. In this chapter we add CLI argument support to mini-claude so it works like a real command-line tool.
+
+### Project Structure Update
+
+```
+demo/
+├── cli.ts              # ← New: Commander.js CLI entry point
+├── repl.tsx            # REPL entry (called by cli.ts)
+├── main.ts             # Script-mode validation (kept)
+├── ...
+```
+
+### CLI Arguments
+
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `-m, --model <model>` | Model ID to use | `claude-sonnet-4-20250514` |
+| `--max-tokens <n>` | Max output tokens | `4096` |
+| `--permission-mode <mode>` | Permission mode: default / auto / bypassPermissions | `auto` |
+| `-p, --prompt <text>` | Non-interactive mode: run a single query and exit | — |
+| `--print` | Print only AI response text (use with `-p`) | — |
+
+### Two Running Modes
+
+**Interactive mode** (default): launches the Ink REPL for ongoing conversation.
+
+```bash
+ANTHROPIC_API_KEY=sk-xxx bun run start
+```
+
+**Non-interactive mode**: runs one query and exits, suitable for scripts.
+
+```bash
+ANTHROPIC_API_KEY=sk-xxx bun run start -- -p "List files in current directory"
+```
+
+### Core Implementation
+
+```typescript
+// Core logic in cli.ts
+program
+  .option("-p, --prompt <text>", "Run a single prompt")
+  .action(async (options) => {
+    if (options.prompt) {
+      // Non-interactive: call query(), print result, exit
+      const result = await query(promptText, [], { ... });
+      process.exit(0);
+    }
+    // Interactive: launch Ink REPL
+    render(React.createElement(App, { model, maxTokens, permissionMode }));
+  });
+```
+
+### Verification
+
+```bash
+cd demo
+bun run start -- --help
+```
+
+You should see mini-claude's help output with all argument descriptions.
+
+### Mapping to Real Claude Code
+
+| Demo | Real Claude Code | What's simplified |
+|------|-----------------|-------------------|
+| `cli.ts` | `src/entrypoints/cli.tsx` | No session recovery, no onboarding, no --resume |
+| Commander.js args | Also uses Commander.js | Real version has many more flags (--verbose, --debug, etc.) |
+
+### Next Chapter Preview
+
+Chapter 10 adds a slash command system (/help, /clear, /compact) and context compression to the REPL.

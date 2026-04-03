@@ -812,3 +812,75 @@ Chapter 12 covers advanced features: speculation (pre-running likely tool calls)
 - `src/services/extractMemories/extractMemories.ts` — Auto memory extraction
 - `src/memdir/memoryTypes.ts` — Memory type taxonomy
 - `src/memdir/paths.ts` — `getAutoMemPath()`, `isAutoMemoryEnabled()`
+
+---
+
+## Hands-On: Interactive Permission Confirmation
+
+> Chapter 8 created the `PermissionRequest.tsx` component for in-Ink permission confirmation. This chapter creates a standalone utility function that handles permission confirmation in non-Ink environments (e.g., `--prompt` mode).
+
+### Project Structure Update
+
+```
+demo/
+├── utils/
+│   ├── permissions.ts              # Existing: permission rule checking
+│   └── interactive-permission.ts   # ← New: interactive permission confirmation
+├── ...
+```
+
+### interactive-permission.ts Walkthrough
+
+The core idea: wrap `checkPermission()` so that when the decision is `"ask"`, a terminal confirmation prompt appears.
+
+```typescript
+export function createInteractiveCheckPermission(
+  context: PermissionContext,
+  interactive: boolean = true
+): CheckPermissionFn {
+  return async (toolName, input) => {
+    const decision = checkPermission(toolName, input, context);
+
+    if (decision.behavior === "ask" && interactive) {
+      // Prompt user in terminal
+      const allowed = await promptUser(`${toolName}(...) — Confirmation needed`);
+      if (allowed) return { behavior: "allow" };
+      return { behavior: "deny", message: "User denied" };
+    }
+
+    return decision;
+  };
+}
+```
+
+### Terminal Permission Confirmation Flow
+
+```
+User input → AI decides to call Bash("ls -la")
+                ↓
+          checkPermission() → "ask"
+                ↓
+          promptUser() → Terminal shows:
+            ⚠ Bash({"command":"ls -la"}) — Shell command may have side effects [Y/n]
+                ↓
+          User presses Enter → Allow execution
+          User types n       → Deny execution
+```
+
+### Two Modes
+
+| Mode | `interactive` parameter | Behavior |
+|------|------------------------|----------|
+| REPL interactive mode | `true` | Show terminal confirmation |
+| `--prompt` non-interactive mode | `false` | Auto-allow (relies on permission rules) |
+
+### Mapping to Real Claude Code
+
+| Demo | Real Claude Code | What's simplified |
+|------|-----------------|-------------------|
+| `interactive-permission.ts` | `src/hooks/toolPermission/` | No "always allow" option, no permission memory |
+| `promptUser()` | `PermissionRequest` component | No arrow key selection, no color highlighting |
+
+### Next Chapter Preview
+
+Chapter 12 adds session history persistence, API retry logic, and multi-source configuration loading, giving mini-claude production-ready infrastructure.

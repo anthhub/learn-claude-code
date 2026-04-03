@@ -812,3 +812,75 @@ saveMemory({
 - `src/services/extractMemories/extractMemories.ts` — 自动记忆提取
 - `src/memdir/memoryTypes.ts` — 记忆类型分类体系
 - `src/memdir/paths.ts` — `getAutoMemPath()`、`isAutoMemoryEnabled()`
+
+---
+
+## 动手构建：交互式权限确认
+
+> 第 8 章创建了 `PermissionRequest.tsx` 组件用于 Ink UI 中的权限确认。本章我们创建一个独立的工具函数，在非 Ink 环境中（如 `--prompt` 模式）也能处理权限确认。
+
+### 项目结构更新
+
+```
+demo/
+├── utils/
+│   ├── permissions.ts              # 已有：权限规则检查
+│   └── interactive-permission.ts   # ← 新增：交互式权限确认
+├── ...
+```
+
+### interactive-permission.ts 讲解
+
+核心思路：包装 `checkPermission()`，当决策为 `"ask"` 时，在终端弹出确认提示。
+
+```typescript
+export function createInteractiveCheckPermission(
+  context: PermissionContext,
+  interactive: boolean = true
+): CheckPermissionFn {
+  return async (toolName, input) => {
+    const decision = checkPermission(toolName, input, context);
+
+    if (decision.behavior === "ask" && interactive) {
+      // 在终端中提示用户确认
+      const allowed = await promptUser(`${toolName}(...) — 需要确认`);
+      if (allowed) return { behavior: "allow" };
+      return { behavior: "deny", message: "User denied" };
+    }
+
+    return decision;
+  };
+}
+```
+
+### 终端中的权限确认流程
+
+```
+用户输入 → AI 决定调用 Bash("ls -la")
+              ↓
+        checkPermission() → "ask"
+              ↓
+        promptUser() → 终端显示：
+          ⚠ Bash({"command":"ls -la"}) — Shell 命令可能有副作用 [Y/n]
+              ↓
+        用户按 Enter → 允许执行
+        用户输入 n   → 拒绝执行
+```
+
+### 两种模式
+
+| 模式 | `interactive` 参数 | 行为 |
+|------|-------------------|------|
+| REPL 交互模式 | `true` | 弹出终端确认 |
+| `--prompt` 非交互模式 | `false` | 自动放行（依赖权限规则本身） |
+
+### 与真实 Claude Code 的对应
+
+| Demo | 真实 Claude Code | 简化了什么 |
+|------|-----------------|-----------|
+| `interactive-permission.ts` | `src/hooks/toolPermission/` | 无"始终允许"选项、无权限记忆 |
+| `promptUser()` | `PermissionRequest` 组件 | 无方向键选择、无颜色高亮 |
+
+### 下一章预告
+
+第 12 章将添加会话历史持久化、API 重试逻辑和多源配置加载，让 mini-claude 具备生产就绪的基础设施。

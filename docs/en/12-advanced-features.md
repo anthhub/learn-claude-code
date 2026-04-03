@@ -844,3 +844,142 @@ The source code is always the ground truth. When in doubt, read it.
 ---
 
 *This concludes the Learn Claude Code series. The journey from Chapter 1's architecture overview to Chapter 12's advanced internals has covered one of the most sophisticated production AI agent systems available for study. You now have the mental model to read any part of the codebase with confidence.*
+
+---
+
+## Hands-On: Production Ready
+
+> This is the final chapter of the mini-claude series. We add three production-grade infrastructure modules: session history persistence, API retry logic, and multi-source configuration loading.
+
+### Project Structure Update
+
+```
+demo/
+├── utils/
+│   ├── permissions.ts              # Ch7:  Permission rules
+│   ├── messages.ts                 # Ch6:  Message utilities
+│   ├── interactive-permission.ts   # Ch11: Interactive permissions
+│   ├── history.ts                  # ← New: Session history persistence
+│   ├── retry.ts                    # ← New: Exponential backoff retry
+│   └── config.ts                   # ← New: Multi-source config loading
+├── ...
+```
+
+### history.ts — Session Persistence
+
+Saves conversation history to `~/.mini-claude/sessions/`, supporting session recovery:
+
+```typescript
+// Save session
+await saveSession("2024-01-15T10-30-00", messages);
+
+// Load session
+const history = await loadSession("2024-01-15T10-30-00");
+
+// List all sessions
+const sessions = listSessions(); // ["2024-01-15T10-30-00", ...]
+```
+
+### retry.ts — Exponential Backoff Retry
+
+API calls can fail due to network issues or rate limiting. `withRetry()` automatically retries recoverable errors:
+
+```typescript
+const result = await withRetry(
+  () => callAnthropicAPI(prompt),
+  {
+    maxRetries: 3,
+    initialDelay: 1000,    // Wait 1s before first retry
+    maxDelay: 30000,       // Max wait 30s
+    onRetry: (err, attempt) => console.log(`Retry #${attempt}...`),
+  }
+);
+```
+
+**Retryable error types:**
+- 429 Rate Limit
+- 500/502/503 server errors
+- Network timeouts, connection resets
+- API overloaded
+
+### config.ts — Multi-Source Configuration
+
+Configuration priority (highest to lowest): CLI args > environment variables > config file > defaults.
+
+```typescript
+const fileConfig = await loadConfigFile();  // ~/.mini-claude/config.json
+const config = mergeConfig(cliOptions, fileConfig);
+// config.apiKey  → CLI > env > file > ""
+// config.model   → CLI > file > default
+```
+
+### Final Project Structure
+
+```
+demo/
+├── cli.ts                  # Ch9:  Commander.js CLI entry
+├── repl.tsx                # Ch8:  Ink REPL entry
+├── main.ts                 # Ch1:  Script-mode validation
+├── query.ts                # Ch6:  Agentic Loop core
+├── context.ts              # Ch6:  System prompt
+├── tools.ts                # Ch3:  Tool registration
+├── Tool.ts                 # Ch3:  Tool base class
+├── types/
+│   ├── index.ts            # Ch1:  Type exports
+│   ├── message.ts          # Ch1:  Message types
+│   ├── tool.ts             # Ch3:  Tool types
+│   ├── permissions.ts      # Ch7:  Permission types
+│   └── config.ts           # Ch9:  Config types
+├── tools/
+│   ├── EchoTool.ts         # Ch3:  Echo tool
+│   ├── ReadTool.ts         # Ch3:  Read tool
+│   ├── WriteTool.ts        # Ch3:  Write tool
+│   ├── EditTool.ts         # Ch3:  Edit tool
+│   ├── BashTool.ts         # Ch3:  Bash tool
+│   ├── GrepTool.ts         # Ch3:  Grep tool
+│   └── GlobTool.ts         # Ch3:  Glob tool
+├── commands/
+│   ├── index.ts            # Ch10: Command registry
+│   ├── help.ts             # Ch10: /help command
+│   ├── clear.ts            # Ch10: /clear command
+│   └── compact.ts          # Ch10: /compact command
+├── components/
+│   ├── App.tsx             # Ch8:  App entry
+│   ├── MessageList.tsx     # Ch8:  Message list
+│   └── PermissionRequest.tsx # Ch8: Permission dialog
+├── screens/
+│   └── REPL.tsx            # Ch8:  REPL main screen
+├── utils/
+│   ├── permissions.ts      # Ch7:  Permission checking
+│   ├── messages.ts         # Ch6:  Message utilities
+│   ├── interactive-permission.ts # Ch11: Interactive permissions
+│   ├── history.ts          # Ch12: Session persistence
+│   ├── retry.ts            # Ch12: Retry logic
+│   └── config.ts           # Ch12: Config loading
+├── package.json
+└── tsconfig.json
+```
+
+### Mapping to Real Claude Code
+
+| Demo | Real Claude Code | What's simplified |
+|------|-----------------|-------------------|
+| `history.ts` | `src/utils/session.ts` | No encryption, no session metadata, no auto-cleanup |
+| `retry.ts` | `src/services/api/withRetry.ts` | No jitter, no adaptive backoff |
+| `config.ts` | `src/utils/config/` | No CLAUDE.md parsing, no settings.json merging |
+
+### Congratulations!
+
+You have built a complete mini-claude project from scratch, covering the core layers of Claude Code's architecture:
+
+1. **Type System** (Ch1-2) — Message, tool, and config type foundations
+2. **Tool System** (Ch3) — 7 built-in tools with registration and execution
+3. **Service Layer** (Ch5-6) — Agentic Loop, streaming output, system prompts
+4. **Permission System** (Ch7) — Rule matching, permission checking
+5. **Terminal UI** (Ch8) — Ink components, REPL interaction
+6. **CLI Entry** (Ch9) — Commander.js argument parsing
+7. **Command System** (Ch10) — Slash command registry
+8. **Interactive Permissions** (Ch11) — Terminal confirmation flow
+9. **Production Infrastructure** (Ch12) — Persistence, retry, configuration
+
+Each module has a counterpart in the real Claude Code. Understanding mini-claude's architecture means understanding the skeleton of the real Claude Code. When you read the source code next, everything will look familiar.
