@@ -1119,3 +1119,71 @@ GITHUB_TOKEN=... npx @modelcontextprotocol/server-github
 - `src/services/mcp/channelPermissions.ts` — Channel 权限中继
 - `src/tools/MCPTool/MCPTool.ts` — MCPTool 占位符定义
 - `src/entrypoints/mcp.ts` — Claude Code 作为 MCP 服务端
+
+---
+
+## 动手构建：交互式终端 UI
+
+> **这是一次体验飞跃。** 前 7 章的 demo 都是脚本式验证——跑一段预设对话，看日志输出。从本章开始，mini-claude 有了真正的交互界面：用户可以在终端中实时输入、实时对话、实时看到流式输出。
+
+### 项目结构更新
+
+```
+demo/
+├── repl.tsx             # ← 新增：交互式 REPL 入口
+├── screens/
+│   └── REPL.tsx         # ← 新增：REPL 主界面
+├── components/
+│   ├── App.tsx          # ← 新增：应用入口组件
+│   ├── MessageList.tsx  # ← 新增：消息列表渲染
+│   └── PermissionRequest.tsx  # ← 新增：权限确认对话框
+├── main.ts              # 保留：脚本式验证
+├── ...
+```
+
+### 为什么终端 UI 用 React？
+
+你可能会好奇：终端界面为什么要用 React？答案是 [Ink](https://github.com/vadimdemedes/ink)——它是终端版的 React：
+
+- **用组件描述 UI，框架负责渲染到终端**——和 React DOM 渲染到浏览器一样，Ink 把组件树渲染到 stdout
+- **比直接操作 stdout 更容易维护**——不用手动管理光标位置、清屏、重绘
+- **状态管理自动触发 UI 更新**——`useState` 变了，终端自动重绘受影响的区域
+- **真实 Claude Code 也是这么做的**——在 Ink 基础上还构建了自定义渲染管线（`src/rendering/`），处理 Markdown 渲染、语法高亮等
+
+### 核心组件讲解
+
+| 组件 | 作用 | 对应真实 Claude Code |
+|------|------|---------------------|
+| `App.tsx` | API key 检查 + REPL 渲染 | `src/screens/` 入口逻辑 |
+| `REPL.tsx` | 主界面：输入框 + 消息历史 + 流式输出 | `src/screens/REPL.tsx` |
+| `MessageList.tsx` | 渲染对话历史（用户消息、AI 回复、工具调用） | `src/components/AssistantMessage/` |
+| `PermissionRequest.tsx` | 权限确认对话框（← → 选择，Enter 确认） | `src/components/PermissionRequest/` |
+
+### 两种运行模式
+
+```bash
+bun run demo       # 脚本式验证（无需 API key，跑预设对话）
+bun run start      # 交互式 REPL（需要 API key，真实对话）
+```
+
+### 运行 REPL
+
+```bash
+ANTHROPIC_API_KEY=sk-xxx bun run start
+```
+
+启动后你会看到一个终端输入框，可以直接跟 AI 对话。当 AI 要执行写操作时，`PermissionRequest` 组件会弹出确认对话框——这正是第 7 章 `ask` 权限的 UI 落地。
+
+### 与真实 Claude Code 的对应关系
+
+| Demo 文件 | 真实文件 | 简化了什么 |
+|-----------|---------|-----------|
+| `repl.tsx` | `src/entrypoints/cli.tsx` | 无 Commander.js 参数解析、无 session 恢复 |
+| `screens/REPL.tsx` | `src/screens/REPL.tsx` | 无多 tab、无子代理面板、无 thinking 折叠 |
+| `components/App.tsx` | `src/screens/` 入口 | 无 onboarding 流程、无版本检查 |
+| `components/MessageList.tsx` | `src/components/AssistantMessage/` | 无 Markdown 渲染、无语法高亮、无流式动画 |
+| `components/PermissionRequest.tsx` | `src/components/PermissionRequest/` | 无"始终允许"选项、无分类器指示器、无 hook 竞争 |
+
+### 下一章预告
+
+第 9 章将添加 Commander.js CLI 参数支持，让 mini-claude 像真正的 CLI 工具一样接受 `--model`、`--permission-mode` 等参数。

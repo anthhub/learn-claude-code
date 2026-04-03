@@ -1130,3 +1130,71 @@ GITHUB_TOKEN=... npx @modelcontextprotocol/server-github
 - `src/services/mcp/channelPermissions.ts` — Channel permission relay
 - `src/tools/MCPTool/MCPTool.ts` — The MCPTool placeholder definition
 - `src/entrypoints/mcp.ts` — Claude Code as MCP server
+
+---
+
+## Hands-on: Interactive Terminal UI
+
+> **This is an experience leap.** The first 7 chapters used script-style validation — running preset conversations and checking log output. Starting from this chapter, mini-claude gets a real interactive interface: users can type in real-time, converse in real-time, and see streaming output in real-time.
+
+### Project Structure Update
+
+```
+demo/
+├── repl.tsx             # ← NEW: Interactive REPL entry point
+├── screens/
+│   └── REPL.tsx         # ← NEW: REPL main screen
+├── components/
+│   ├── App.tsx          # ← NEW: App entry component
+│   ├── MessageList.tsx  # ← NEW: Message list renderer
+│   └── PermissionRequest.tsx  # ← NEW: Permission confirmation dialog
+├── main.ts              # Kept: Script-style validation
+├── ...
+```
+
+### Why React for Terminal UI?
+
+You might wonder: why use React for a terminal interface? The answer is [Ink](https://github.com/vadimdemedes/ink) — it's React for the terminal:
+
+- **Describe UI with components, the framework handles terminal rendering** — just like React DOM renders to the browser, Ink renders the component tree to stdout
+- **Easier to maintain than raw stdout manipulation** — no manual cursor positioning, screen clearing, or redrawing
+- **State management automatically triggers UI updates** — when `useState` changes, the terminal re-renders affected regions
+- **Real Claude Code does the same** — it builds a custom rendering pipeline on top of Ink (`src/rendering/`) for Markdown rendering, syntax highlighting, and more
+
+### Core Components
+
+| Component | Purpose | Maps to Real Claude Code |
+|-----------|---------|--------------------------|
+| `App.tsx` | API key check + REPL rendering | `src/screens/` entry logic |
+| `REPL.tsx` | Main screen: input box + message history + streaming output | `src/screens/REPL.tsx` |
+| `MessageList.tsx` | Renders conversation history (user messages, AI replies, tool calls) | `src/components/AssistantMessage/` |
+| `PermissionRequest.tsx` | Permission confirmation dialog (← → to select, Enter to confirm) | `src/components/PermissionRequest/` |
+
+### Two Run Modes
+
+```bash
+bun run demo       # Script-style validation (no API key needed, runs preset conversations)
+bun run start      # Interactive REPL (requires API key, real conversations)
+```
+
+### Running the REPL
+
+```bash
+ANTHROPIC_API_KEY=sk-xxx bun run start
+```
+
+After launch, you'll see a terminal input box where you can converse with the AI directly. When the AI needs to perform write operations, the `PermissionRequest` component pops up a confirmation dialog — this is the UI realization of Chapter 7's `ask` permission.
+
+### Mapping to Real Claude Code
+
+| Demo File | Real File | What's Simplified |
+|-----------|-----------|-------------------|
+| `repl.tsx` | `src/entrypoints/cli.tsx` | No Commander.js argument parsing, no session restoration |
+| `screens/REPL.tsx` | `src/screens/REPL.tsx` | No multi-tab, no sub-agent panel, no thinking collapse |
+| `components/App.tsx` | `src/screens/` entry | No onboarding flow, no version check |
+| `components/MessageList.tsx` | `src/components/AssistantMessage/` | No Markdown rendering, no syntax highlighting, no streaming animation |
+| `components/PermissionRequest.tsx` | `src/components/PermissionRequest/` | No "always allow" option, no classifier indicator, no hook racing |
+
+### What's Next
+
+Chapter 9 will add Commander.js CLI argument support, allowing mini-claude to accept parameters like `--model`, `--permission-mode`, and more — just like a real CLI tool.
