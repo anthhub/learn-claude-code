@@ -25,6 +25,7 @@
 8. [工具结果存储](#8-工具结果存储)
 9. [动手实践：创建自定义工具](#9-动手实践创建自定义工具)
 10. [核心要点与下一步](#10-核心要点与下一步)
+11. [动手构建：API 服务层与系统提示词](#11-动手构建api-服务层与系统提示词)
 
 ---
 
@@ -910,4 +911,105 @@ graph TB
 
 ---
 
+## 11. 动手构建：API 服务层与系统提示词
+
+上一章我们为 mini-claude 添加了工具工厂与注册表。本章我们新增两个文件：一个 API 客户端用于与 Anthropic 对话，一个系统提示词构建器告诉 AI 它是谁、能做什么。
+
+### 11.1 项目结构更新
+
+```
+demo/
+├── main.ts
+├── Tool.ts              # 第 2 章
+├── tools.ts             # 第 2 章
+├── context.ts           # ← 新增：系统提示词构建器
+├── services/
+│   └── api/
+│       └── claude.ts    # ← 新增：Anthropic API 客户端
+└── types/               # 第 1 章
+```
+
+### 11.2 context.ts：系统提示词构建器
+
+打开 `demo/context.ts`，这是本章的第一个核心文件。
+
+**系统提示词的作用**
+
+系统提示词（system prompt）是发送给 AI 的第一条消息，它定义了 AI 的身份、可用能力和行为规则。没有系统提示词，AI 就是一个通用聊天机器人；有了它，AI 才知道自己是一个能读写文件、执行命令的编程助手。
+
+**buildSystemPrompt() 的构建逻辑**
+
+`buildSystemPrompt()` 函数将系统提示词分为几个部分拼接：
+
+1. **身份声明** — 告诉 AI"你是一个编程助手"
+2. **工具描述** — 从工具注册表中提取所有可用工具的名称和描述，让 AI 知道它能做什么
+3. **工作目录** — 告诉 AI 当前在哪个目录工作，避免路径混乱
+4. **行为规则** — 如"优先编辑现有文件而非创建新文件"等约束
+
+这是一个纯函数：输入工具列表和工作目录，输出格式化的提示词字符串。
+
+**与真实 Claude Code 的对比**
+
+真实 Claude Code 的系统提示词有数千个 token，采用分层优先级系统（system prompt → CLAUDE.md → 用户指令）。我们的简化版抓住核心思想——告诉 AI 身份和能力——但省略了优先级链、CLAUDE.md 合并、动态特性标志注入等复杂机制。
+
+### 11.3 services/api/claude.ts：API 客户端
+
+打开 `demo/services/api/claude.ts`，这是第二个核心文件。
+
+**createClient()：创建 SDK 实例**
+
+`createClient()` 封装了 Anthropic SDK 的初始化。它读取 `ANTHROPIC_API_KEY` 环境变量，创建一个可复用的客户端实例。
+
+**streamMessage()：流式响应处理**
+
+`streamMessage()` 是核心函数，采用 **AsyncGenerator** 模式处理流式响应。它向 API 发起请求，然后逐个 yield 事件：
+
+- `text` — 模型输出的文本 token
+- `tool_use_start` — 模型开始调用一个工具（携带工具名）
+- `tool_use_delta` — 工具调用参数的增量片段
+- `tool_use_end` — 工具调用参数传输完毕
+- `message_end` — 整个消息结束
+
+**为什么用 AsyncGenerator？**
+
+AsyncGenerator（`async function*`）让调用方可以实时处理每个事件，而非等待完整响应。这对用户体验至关重要：
+
+```
+非流式：等待完整响应 → 一次性处理（简单但慢）
+流式：  逐 token 接收 → 实时渲染（复杂但快，用户体验好）
+```
+
+用 `for await (const event of streamMessage(...))` 消费事件流，调用方可以：
+- 实时在终端渲染文本
+- 在工具调用开始时立即显示 UI 反馈
+- 在收到完整参数后立即执行工具
+
+这种模式与真实 Claude Code 中 `src/services/api/claude.ts` 的流式处理逻辑一致。
+
+### 11.4 运行验证
+
+```bash
+cd demo
+bun run main.ts                    # 无 API key 也能运行（展示工具注册表和系统提示词）
+
+ANTHROPIC_API_KEY=sk-xxx bun run main.ts  # 有 key 可体验流式调用
+```
+
+### 11.5 与真实 Claude Code 的对应关系
+
+| Demo 文件 | 真实文件 | 简化了什么 |
+|-----------|---------|-----------|
+| `services/api/claude.ts` | `src/services/api/claude.ts` | 单 Provider、无重试、无缓存 |
+| `context.ts` | 系统提示词构建逻辑 | 无优先级链、无 CLAUDE.md 合并 |
+
+这些简化保留了真实架构的核心模式：SDK 封装、流式事件处理、系统提示词组装。下一章将把这些组件串联起来。
+
+### 下一章预告
+
+第 4 章将实现 `query.ts`——查询循环（Agentic Loop），将 API 调用和工具执行连接起来，完成 AI 自主推理的闭环。
+
+---
+
 *本章源码引用：`src/Tool.ts`（所有行号相对于 anthhub-claude-code 快照）、`src/tools.ts`、`src/tools/BashTool/BashTool.tsx`、`src/tools/FileEditTool/FileEditTool.ts`、`src/tools/FileReadTool/FileReadTool.ts`、`src/tools/GlobTool/GlobTool.ts`、`src/tools/GrepTool/GrepTool.ts`、`src/tools/AgentTool/AgentTool.tsx`。*
+
+*本章 demo 代码：`demo/context.ts`、`demo/services/api/claude.ts`*

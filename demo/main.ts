@@ -20,6 +20,9 @@ import {
   DEFAULT_CONFIG,
 } from "./types/index.js";
 
+import { createClient, streamMessage } from "./services/api/claude.js";
+import { buildSystemPrompt } from "./context.js";
+
 import type {
   Message,
   UserMessage,
@@ -174,4 +177,39 @@ console.log(`  Bash: "${bashResult.content.trim()}"`);
 
 console.log();
 console.log("类型系统验证通过！");
-console.log("下一步: 第 3 章 - Anthropic API 调用 + 流式响应");
+
+// ─── 第 3 章：API 服务层演示 ──────────────────────────────────────────────
+
+// 构建系统提示词
+const systemPrompt = buildSystemPrompt(allTools, process.cwd());
+console.log("系统提示词预览（前 200 字符）:");
+console.log(`  "${systemPrompt.substring(0, 200)}..."`);
+console.log();
+
+// API 客户端演示（需要 ANTHROPIC_API_KEY 环境变量）
+if (process.env.ANTHROPIC_API_KEY) {
+  console.log("API 流式调用演示:");
+  const client = createClient();
+  const apiToolDefs = getToolsForAPI();
+
+  process.stdout.write("  AI: ");
+  for await (const event of streamMessage(client, {
+    model: DEFAULT_MODEL,
+    maxTokens: 256,
+    system: systemPrompt,
+    messages: [{ role: "user", content: "Say hello in one sentence." }],
+    tools: apiToolDefs,
+  })) {
+    if (event.type === "text") {
+      process.stdout.write(event.text ?? "");
+    } else if (event.type === "message_end") {
+      console.log();
+      console.log(`  [tokens: ${event.usage?.inputTokens} in, ${event.usage?.outputTokens} out]`);
+    }
+  }
+} else {
+  console.log("API 演示跳过（设置 ANTHROPIC_API_KEY 环境变量后可体验流式调用）");
+}
+
+console.log();
+console.log("下一步: 第 4 章 - 查询循环（Agentic Loop）");

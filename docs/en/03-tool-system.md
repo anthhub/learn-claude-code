@@ -25,6 +25,7 @@
 8. [Tool Result Storage](#8-tool-result-storage)
 9. [Hands-on: Build Your Own Tool](#9-hands-on-build-your-own-tool)
 10. [Key Takeaways and What's Next](#10-key-takeaways-and-whats-next)
+11. [Hands-on: API Service Layer and System Prompt](#11-hands-on-api-service-layer-and-system-prompt)
 
 ---
 
@@ -910,4 +911,105 @@ graph TB
 
 ---
 
+## 11. Hands-on: API Service Layer and System Prompt
+
+In the previous chapter, we added the tool factory and registry to mini-claude. This chapter introduces two new files: an API client for communicating with Anthropic, and a system prompt builder that tells the AI who it is and what it can do.
+
+### 11.1 Project Structure Update
+
+```
+demo/
+├── main.ts
+├── Tool.ts              # Chapter 2
+├── tools.ts             # Chapter 2
+├── context.ts           # ← New: system prompt builder
+├── services/
+│   └── api/
+│       └── claude.ts    # ← New: Anthropic API client
+└── types/               # Chapter 1
+```
+
+### 11.2 context.ts: System Prompt Builder
+
+Open `demo/context.ts` — this is the first core file in this chapter.
+
+**What the System Prompt Does**
+
+The system prompt is the first message sent to the AI, defining its identity, available capabilities, and behavioral rules. Without a system prompt, the AI is a generic chatbot; with one, it knows it's a programming assistant that can read/write files and execute commands.
+
+**buildSystemPrompt() Construction Logic**
+
+The `buildSystemPrompt()` function assembles the system prompt from several parts:
+
+1. **Identity declaration** — tells the AI "you are a programming assistant"
+2. **Tool descriptions** — extracts names and descriptions of all available tools from the registry, so the AI knows what it can do
+3. **Working directory** — tells the AI which directory it's working in, avoiding path confusion
+4. **Behavioral rules** — constraints like "prefer editing existing files over creating new ones"
+
+This is a pure function: given a tool list and working directory, it outputs a formatted prompt string.
+
+**Comparison with Real Claude Code**
+
+Real Claude Code's system prompt spans thousands of tokens with a layered priority system (system prompt → CLAUDE.md → user instructions). Our simplified version captures the core idea — telling the AI its identity and capabilities — but omits the priority chain, CLAUDE.md merging, dynamic feature flag injection, and other complex mechanisms.
+
+### 11.3 services/api/claude.ts: API Client
+
+Open `demo/services/api/claude.ts` — this is the second core file.
+
+**createClient(): Creating the SDK Instance**
+
+`createClient()` wraps the Anthropic SDK initialization. It reads the `ANTHROPIC_API_KEY` environment variable and creates a reusable client instance.
+
+**streamMessage(): Streaming Response Handler**
+
+`streamMessage()` is the core function, using the **AsyncGenerator** pattern for streaming responses. It sends a request to the API, then yields events one by one:
+
+- `text` — text tokens output by the model
+- `tool_use_start` — the model begins calling a tool (with tool name)
+- `tool_use_delta` — incremental fragments of tool call arguments
+- `tool_use_end` — tool call arguments fully transmitted
+- `message_end` — the entire message is complete
+
+**Why AsyncGenerator?**
+
+AsyncGenerator (`async function*`) lets the caller process each event in real time rather than waiting for the complete response. This is critical for user experience:
+
+```
+Non-streaming: wait for full response → process at once (simple but slow)
+Streaming:     receive token by token → render in real time (complex but fast, better UX)
+```
+
+By consuming the event stream with `for await (const event of streamMessage(...))`, the caller can:
+- Render text in the terminal in real time
+- Show UI feedback immediately when a tool call starts
+- Execute tools as soon as full arguments are received
+
+This pattern mirrors the streaming logic in real Claude Code's `src/services/api/claude.ts`.
+
+### 11.4 Running the Demo
+
+```bash
+cd demo
+bun run main.ts                    # Works without API key (shows tool registry and system prompt)
+
+ANTHROPIC_API_KEY=sk-xxx bun run main.ts  # With a key, experience streaming calls
+```
+
+### 11.5 Mapping to Real Claude Code
+
+| Demo File | Real File | What's Simplified |
+|-----------|-----------|-------------------|
+| `services/api/claude.ts` | `src/services/api/claude.ts` | Single provider, no retries, no caching |
+| `context.ts` | System prompt construction logic | No priority chain, no CLAUDE.md merging |
+
+These simplifications preserve the core architectural patterns: SDK wrapping, streaming event handling, and system prompt assembly. The next chapter will wire these components together.
+
+### What's Next
+
+Chapter 4 will implement `query.ts` — the query loop (Agentic Loop), connecting API calls and tool execution to complete the autonomous reasoning cycle.
+
+---
+
 *Source references in this chapter: `src/Tool.ts` (all line numbers relative to the anthhub-claude-code snapshot), `src/tools.ts`, `src/tools/BashTool/BashTool.tsx`, `src/tools/FileEditTool/FileEditTool.ts`, `src/tools/FileReadTool/FileReadTool.ts`, `src/tools/GlobTool/GlobTool.ts`, `src/tools/GrepTool/GrepTool.ts`, `src/tools/AgentTool/AgentTool.tsx`.*
+
+*Demo code for this chapter: `demo/context.ts`, `demo/services/api/claude.ts`*
